@@ -18,6 +18,7 @@
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
+class ModulePass;
 class FunctionPass;
 class InstructionSelector;
 class PassRegistry;
@@ -92,6 +93,18 @@ void initializeRISCVPostLegalizerCombinerPass(PassRegistry &);
 
 FunctionPass *createRISCVO0PreLegalizerCombiner();
 void initializeRISCVO0PreLegalizerCombinerPass(PassRegistry &);
+
+FunctionPass *createVortexBranchDivergence0Pass();
+void initializeVortexBranchDivergence0Pass(PassRegistry&);
+
+FunctionPass *createVortexBranchDivergence1Pass(int divergenceMode = 0);
+void initializeVortexBranchDivergence1Pass(PassRegistry&);
+
+FunctionPass *createVortexBranchDivergence2Pass(int PassMode);
+void initializeVortexBranchDivergence2Pass(PassRegistry&);
+
+ModulePass *createVortexIntrinsicFuncLoweringPass();
+void initializeVortexIntrinsicFuncLoweringPass(PassRegistry&);
 
 FunctionPass *createRISCVPreLegalizerCombiner();
 void initializeRISCVPreLegalizerCombinerPass(PassRegistry &);

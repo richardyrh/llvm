@@ -186,6 +186,9 @@ bool RISCVExpandPseudo::expandCCOp(MachineBasicBlock &MBB,
   auto CC = static_cast<RISCVCC::CondCode>(MI.getOperand(3).getImm());
   CC = RISCVCC::getOppositeBranchCondition(CC);
 
+  llvm::errs() << "error: unimplemented divergent codegen found!\n";
+  std::abort();
+
   // Insert branch instruction.
   BuildMI(MBB, MBBI, DL, TII->getBrCond(CC))
       .addReg(MI.getOperand(1).getReg())

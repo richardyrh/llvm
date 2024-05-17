@@ -919,6 +919,15 @@ def HasVendorXSfvfnrclipxfqf
       AssemblerPredicate<(all_of FeatureVendorXSfvfnrclipxfqf),
                          "'XSfvfnrclipxfqf' (SiFive FP32-to-int8 Ranged Clip Instructions)">;
 
+// Vortex extensions
+
+def FeatureVendorVortex
+    : SubtargetFeature<"vortex", "HasVendorXVortex", "true",
+                       "'Vortex' (Vortex ISA Extension)">;
+def HasVendorXVortex : Predicate<"Subtarget->HasVendorXVortex()">,
+                             AssemblerPredicate<(all_of FeatureVendorVortex),
+                             "'Vortex' (Vortex ISA Extension)">;
+
 // Core-V Extensions
 
 def FeatureVendorXCVelw

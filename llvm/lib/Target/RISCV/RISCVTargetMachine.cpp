@@ -35,6 +35,7 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
 #include <optional>
@@ -44,6 +45,20 @@ static cl::opt<bool> EnableRedundantCopyElimination(
     "riscv-enable-copyelim",
     cl::desc("Enable the redundant copy elimination pass"), cl::init(true),
     cl::Hidden);
+
+// 0: Disable Vortex Branch Divergence
+// 1: Enable Vortex Branch Divergence with only non-regional-only divergent branches structurized first
+// 2: Enable Vortex Branch Divergence with all divergent branches structurized first
+static cl::opt<int> VortexBranchDivergenceMode(
+  "vortex-branch-divergence",
+  cl::desc("Set Vortex Branch Divergence Mode"),
+  cl::init(1));
+int gVortexBranchDivergenceMode = 0;
+
+static cl::opt<int> VortexKernelSchedulerMode(
+  "vortex-kernel-scheduler",
+  cl::desc("Set Vortex Kernel Scheduler Mode"),
+  cl::init(0));
 
 // FIXME: Unify control over GlobalMerge.
 static cl::opt<cl::boolOrDefault>
@@ -110,6 +125,15 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVPreLegalizerCombinerPass(*PR);
   initializeRISCVPostLegalizerCombinerPass(*PR);
   initializeKCFIPass(*PR);
+  if (VortexBranchDivergenceMode != 0) {
+    gVortexBranchDivergenceMode = 1;
+    initializeVortexBranchDivergence0Pass(*PR);
+    initializeVortexBranchDivergence1Pass(*PR);
+    initializeVortexBranchDivergence2Pass(*PR);
+  }
+  if (VortexKernelSchedulerMode != 0) {
+    initializeVortexIntrinsicFuncLoweringPass(*PR);
+  }
   initializeRISCVDeadRegisterDefinitionsPass(*PR);
   initializeRISCVMakeCompressibleOptPass(*PR);
   initializeRISCVGatherScatterLoweringPass(*PR);
@@ -166,6 +190,11 @@ RISCVTargetMachine::RISCVTargetMachine(const Target &T, const Triple &TT,
   // RISC-V supports the MachineOutliner.
   setMachineOutliner(true);
   setSupportsDefaultOutlining(true);
+
+  auto isVortex = FS.contains("vortex");
+  if (isVortex) {
+   setRequiresStructuredCFG(true);
+  }
 
   if (TT.isOSFuchsia() && !TT.isArch64Bit())
     report_fatal_error("Fuchsia is only supported for 64-bit");
@@ -467,6 +496,23 @@ bool RISCVPassConfig::addPreISel() {
                                   /* MergeExternalByDefault */ true));
   }
 
+  if (TM->getTargetFeatureString().contains("vortex")) {
+    if (VortexBranchDivergenceMode != 0) {
+      addPass(createCFGSimplificationPass());
+      addPass(createLoopSimplifyPass());
+      addPass(createFixIrreduciblePass());
+      addPass(createUnifyLoopExitsPass());
+      addPass(createSinkingPass());
+      addPass(createLowerSwitchPass());
+      addPass(createFlattenCFGPass());
+      addPass(createVortexBranchDivergence0Pass());
+      addPass(createStructurizeCFGPass(true, (VortexBranchDivergenceMode == 1)));
+      addPass(createVortexBranchDivergence1Pass(VortexBranchDivergenceMode));
+    }
+    if (VortexKernelSchedulerMode != 0) {
+      addPass(createVortexIntrinsicFuncLoweringPass());
+    }
+  }
   return false;
 }
 
@@ -548,6 +594,11 @@ void RISCVPassConfig::addPreEmitPass2() {
   addPass(createUnpackMachineBundles([&](const MachineFunction &MF) {
     return MF.getFunction().getParent()->getModuleFlag("kcfi");
   }));
+
+  if (TM->getTargetFeatureString().contains("vortex")
+   && VortexBranchDivergenceMode != 0) {
+    addPass(createVortexBranchDivergence2Pass(1));
+  }
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
@@ -573,6 +624,11 @@ void RISCVPassConfig::addPreRegAlloc() {
     addPass(createRISCVDeadRegisterDefinitionsPass());
   addPass(createRISCVInsertReadWriteCSRPass());
   addPass(createRISCVInsertWriteVXRMPass());
+
+  if (TM->getTargetFeatureString().contains("vortex")
+   && VortexBranchDivergenceMode != 0) {
+    addPass(createVortexBranchDivergence2Pass(0));
+  }
 }
 
 void RISCVPassConfig::addOptimizedRegAlloc() {

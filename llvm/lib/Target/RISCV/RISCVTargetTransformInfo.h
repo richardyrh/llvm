@@ -23,6 +23,7 @@
 #include "llvm/CodeGen/BasicTTIImpl.h"
 #include "llvm/IR/Function.h"
 #include <optional>
+#include "VortexBranchDivergence.h"
 
 namespace llvm {
 
@@ -34,6 +35,8 @@ class RISCVTTIImpl : public BasicTTIImplBase<RISCVTTIImpl> {
 
   const RISCVSubtarget *ST;
   const RISCVTargetLowering *TLI;
+  vortex::DivergenceTracker divergence_tracker_;
+  bool hasBranchDivergence_;
 
   const RISCVSubtarget *getST() const { return ST; }
   const RISCVTargetLowering *getTLI() const { return TLI; }
@@ -58,7 +61,9 @@ class RISCVTTIImpl : public BasicTTIImplBase<RISCVTTIImpl> {
 public:
   explicit RISCVTTIImpl(const RISCVTargetMachine *TM, const Function &F)
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),
-        TLI(ST->getTargetLowering()) {}
+        TLI(ST->getTargetLowering())
+      , divergence_tracker_(F)
+      , hasBranchDivergence_(ST->hasVendorXVortex()) {}
 
   /// Return the cost of materializing an immediate for a value operand of
   /// a store instruction.
@@ -76,6 +81,10 @@ public:
                                       TTI::TargetCostKind CostKind);
 
   TargetTransformInfo::PopcntSupportKind getPopcntSupport(unsigned TyWidth);
+
+  // Vortex extension
+  bool isSourceOfDivergence(const Value *V);
+  bool hasBranchDivergence(const Function *F);
 
   bool shouldExpandReduction(const IntrinsicInst *II) const;
   bool supportsScalableVectors() const { return ST->hasVInstructions(); }
