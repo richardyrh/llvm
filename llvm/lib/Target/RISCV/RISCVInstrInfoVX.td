@@ -47,7 +47,7 @@ def VX_RAST : RVInstR<1, 0, RISCV_CUSTOM0, (outs GPR:$rd), (ins), "vx_rast", "">
     let rs2 = 0;
 }
 
-def VX_TEX : RVInstR4<0, 0, RISCV_CUSTOM1, (outs GPR:$rd), (GPR:$rs1, GPR:$rs2, GPR:$rs3), "vx_tex", "$rd, $rs1, $rs2, $rs3">, Sched<[]> {}
+def VX_TEX : RVInstR4<0, 0, RISCV_CUSTOM1, (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2, GPR:$rs3), "vx_tex", "$rd, $rs1, $rs2, $rs3">, Sched<[]> {}
 
 def VX_ROP : RVInstR4<0, 1, RISCV_CUSTOM1, (outs), (ins GPR:$rs1, GPR:$rs2, GPR:$rs3), "vx_rop", "$rs1, $rs2, $rs3">, Sched<[]> {
     let rd = 0;
