@@ -984,11 +984,11 @@ void DivergenceTracker::initialize() {
             auto var = II->getOperand(0);
             if (auto AI = dyn_cast<AllocaInst>(var)) {
               var_src = AI;
-              LLVM_DEBUG(dbgs() << "*** uniform annotation: " << AI->getName() << ".src(" << var_src << "\n");
+              LLVM_DEBUG(dbgs() << "*** divergent annotation: " << AI->getName() << ".src(" << var_src << "\n");
             } else
             if (auto CI = dyn_cast<CastInst>(var)) {
               var_src = CI->getOperand(0);
-              LLVM_DEBUG(dbgs() << "*** uniform annotation: " << CI->getName() << ".src(" << var_src << "\n");
+              LLVM_DEBUG(dbgs() << "*** divergent annotation: " << CI->getName() << ".src(" << var_src << "\n");
             }
             dv_annotations.insert(var_src);
             dv_nodes_.insert(var_src);

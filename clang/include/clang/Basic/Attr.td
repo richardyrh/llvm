@@ -1940,14 +1940,6 @@ def Convergent : InheritableAttr {
   let SimpleHandler = 1;
 }
 
-// Vortex attributes for marking variables as uniform
-def VortexUniform : InheritableAttr {
-  let Spellings = [GNU<"uniform">, Declspec<"__uniform__">];
-  let Subjects = SubjectList<[Var]>;
-  let LangOpts = [CPlusPlus];
-  let Documentation = [Undocumented];
-}
-
 def NoInline : DeclOrStmtAttr {
   let Spellings = [CustomKeyword<"__noinline__">, GCC<"noinline">,
                    CXX11<"clang", "noinline">, C23<"clang", "noinline">,
