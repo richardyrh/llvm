@@ -84,6 +84,7 @@ public:
 
   // Vortex extension
   bool isSourceOfDivergence(const Value *V);
+  bool isAlwaysUniform(const Value *V);
   bool hasBranchDivergence(const Function *F);
 
   bool shouldExpandReduction(const IntrinsicInst *II) const;

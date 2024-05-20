@@ -38,6 +38,8 @@
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "VortexBranchDivergence.h"
 #include <optional>
 using namespace llvm;
 
@@ -298,6 +300,16 @@ bool RISCVTargetMachine::isNoopAddrSpaceCast(unsigned SrcAS,
   return true;
 }
 
+void RISCVTargetMachine::registerPassBuilderCallbacks(
+    PassBuilder &PB, bool PopulateClassToPassNames) {
+  PB.registerPipelineStartEPCallback(
+    [this](ModulePassManager &PM, OptimizationLevel Level) {
+      FunctionPassManager FPM;
+      FPM.addPass(vortex::UniformAnnotationPass());
+      PM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+    });
+}
+
 namespace {
 
 class RVVRegisterRegAlloc : public RegisterRegAllocBase<RVVRegisterRegAlloc> {
@@ -468,6 +480,8 @@ bool RISCVPassConfig::addRegAssignAndRewriteOptimized() {
 }
 
 void RISCVPassConfig::addIRPasses() {
+  //insertPass(Annotation2MetadataPass::ID(), &VortexBranchDivergence0ID);
+
   addPass(createAtomicExpandPass());
 
   if (getOptLevel() != CodeGenOptLevel::None) {
@@ -498,13 +512,13 @@ bool RISCVPassConfig::addPreISel() {
 
   if (TM->getTargetFeatureString().contains("vortex")) {
     if (VortexBranchDivergenceMode != 0) {
-      addPass(createCFGSimplificationPass());
-      addPass(createLoopSimplifyPass());
-      addPass(createFixIrreduciblePass());
-      addPass(createUnifyLoopExitsPass());
-      addPass(createSinkingPass());
       addPass(createLowerSwitchPass());
+      addPass(createCFGSimplificationPass());
       addPass(createFlattenCFGPass());
+      addPass(createLoopSimplifyPass());
+      addPass(createUnifyLoopExitsPass());
+      addPass(createFixIrreduciblePass());
+      addPass(createSinkingPass());
       addPass(createVortexBranchDivergence0Pass());
       addPass(createStructurizeCFGPass(true, (VortexBranchDivergenceMode == 1)));
       addPass(createVortexBranchDivergence1Pass(VortexBranchDivergenceMode));

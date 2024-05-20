@@ -1515,5 +1515,9 @@ bool RISCVTTIImpl::hasBranchDivergence(const Function *F) {
 }
 
 bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) {
-  return divergence_tracker_.eval(V);
+  return divergence_tracker_.isSourceOfDivergence(V);
+}
+
+bool RISCVTTIImpl::isAlwaysUniform(const Value *V) {
+  return divergence_tracker_.isAlwaysUniform(V);
 }
