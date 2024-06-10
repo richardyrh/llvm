@@ -127,13 +127,13 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVPreLegalizerCombinerPass(*PR);
   initializeRISCVPostLegalizerCombinerPass(*PR);
   initializeKCFIPass(*PR);
-  if (VortexBranchDivergenceMode != 0) {
-    gVortexBranchDivergenceMode = 1;
+  gVortexBranchDivergenceMode = VortexBranchDivergenceMode;
+  if (gVortexBranchDivergenceMode != 0) {
     initializeVortexBranchDivergence0Pass(*PR);
     initializeVortexBranchDivergence1Pass(*PR);
     initializeVortexBranchDivergence2Pass(*PR);
   }
-  if (VortexKernelSchedulerMode != 0) {
+  if (gVortexBranchDivergenceMode != 0) {
     initializeVortexIntrinsicFuncLoweringPass(*PR);
   }
   initializeRISCVDeadRegisterDefinitionsPass(*PR);
@@ -193,8 +193,8 @@ RISCVTargetMachine::RISCVTargetMachine(const Target &T, const Triple &TT,
   setMachineOutliner(true);
   setSupportsDefaultOutlining(true);
 
-  auto isVortex = FS.contains("vortex");
-  if (isVortex) {
+  if (FS.contains("vortex")
+   && gVortexBranchDivergenceMode != 0) {
    setRequiresStructuredCFG(true);
   }
 
@@ -269,7 +269,7 @@ RISCVTargetMachine::getSubtargetImpl(const Function &F) const {
       auto TargetABI = RISCVABI::getTargetABI(ABIName);
       if (TargetABI != RISCVABI::ABI_Unknown &&
           ModuleTargetABI->getString() != ABIName) {
-        report_fatal_error("-target-abi option != target-abi module flag");
+        report_fatal_error("-target-abi option != target-abi module flag: " + ModuleTargetABI->getString() + " vs " + ABIName);
       }
       ABIName = ModuleTargetABI->getString();
     }
@@ -302,12 +302,15 @@ bool RISCVTargetMachine::isNoopAddrSpaceCast(unsigned SrcAS,
 
 void RISCVTargetMachine::registerPassBuilderCallbacks(
     PassBuilder &PB, bool PopulateClassToPassNames) {
-  PB.registerPipelineStartEPCallback(
-    [this](ModulePassManager &PM, OptimizationLevel Level) {
-      FunctionPassManager FPM;
-      FPM.addPass(vortex::UniformAnnotationPass());
-      PM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
-    });
+  if (gVortexBranchDivergenceMode != 0) {
+    PB.registerPipelineStartEPCallback(
+      [this](ModulePassManager &PM, OptimizationLevel Level) {
+        FunctionPassManager FPM;
+        FPM.addPass(vortex::UniformAnnotationPass());
+        PM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+      });
+
+  }
 }
 
 namespace {
@@ -511,7 +514,7 @@ bool RISCVPassConfig::addPreISel() {
   }
 
   if (TM->getTargetFeatureString().contains("vortex")) {
-    if (VortexBranchDivergenceMode != 0) {
+    if (gVortexBranchDivergenceMode != 0) {
       addPass(createLowerSwitchPass());
       addPass(createCFGSimplificationPass());
       addPass(createFlattenCFGPass());
@@ -520,8 +523,8 @@ bool RISCVPassConfig::addPreISel() {
       addPass(createFixIrreduciblePass());
       addPass(createSinkingPass());
       addPass(createVortexBranchDivergence0Pass());
-      addPass(createStructurizeCFGPass(true, (VortexBranchDivergenceMode == 1)));
-      addPass(createVortexBranchDivergence1Pass(VortexBranchDivergenceMode));
+      addPass(createStructurizeCFGPass(true, (gVortexBranchDivergenceMode == 1)));
+      addPass(createVortexBranchDivergence1Pass(gVortexBranchDivergenceMode));
     }
     if (VortexKernelSchedulerMode != 0) {
       addPass(createVortexIntrinsicFuncLoweringPass());
@@ -610,7 +613,7 @@ void RISCVPassConfig::addPreEmitPass2() {
   }));
 
   if (TM->getTargetFeatureString().contains("vortex")
-   && VortexBranchDivergenceMode != 0) {
+   && gVortexBranchDivergenceMode != 0) {
     addPass(createVortexBranchDivergence2Pass(1));
   }
 }
@@ -640,7 +643,7 @@ void RISCVPassConfig::addPreRegAlloc() {
   addPass(createRISCVInsertWriteVXRMPass());
 
   if (TM->getTargetFeatureString().contains("vortex")
-   && VortexBranchDivergenceMode != 0) {
+   && gVortexBranchDivergenceMode != 0) {
     addPass(createVortexBranchDivergence2Pass(0));
   }
 }

@@ -804,6 +804,7 @@ void VortexBranchDivergence1::processLoops(LLVMContext* context, Function* funct
   for (auto it = loops_.rbegin(), ite = loops_.rend(); it != ite; ++it) {
     auto loop = *it;
     auto header = loop->getHeader();
+    assert(header);
 
     auto preheader = loop->getLoopPreheader();
     assert(preheader);
@@ -1063,53 +1064,68 @@ char VortexBranchDivergence2::ID = 0;
 
 PreservedAnalyses UniformAnnotationPass::run(Function &F, FunctionAnalysisManager &AM) {
   bool changed = false;
+
+  std::vector<std::pair<Instruction*, bool>> uniformInsts;
+
   for (auto& BB : F) {
     for (auto& I : BB) {
-      // handle uniform metadata
+      // find uniform metadata
       if (I.getMetadata("vortex.uniform") != nullptr) {
-        IRBuilder<> Builder(I.getNextNode());
-        auto ValueType = I.getType();
-        auto IntrinsicFunc = Intrinsic::getDeclaration(F.getParent(), Intrinsic::riscv_vx_uniform, {ValueType, ValueType});
-        auto CallInst = Builder.CreateCall(IntrinsicFunc, {&I}, ".uniform");
-        I.replaceAllUsesWith(CallInst);
-        changed = true;
-        break;
+        uniformInsts.push_back({&I, false});
+        continue;
       }
-      // handle uniform annotations
+      // find uniform annotations
       if (auto II = dyn_cast<IntrinsicInst>(&I)) {
         if (II->getIntrinsicID() == Intrinsic::var_annotation) {
           auto gv  = dyn_cast<GlobalVariable>(II->getOperand(1));
           auto cda = dyn_cast<ConstantDataArray>(gv->getInitializer());
           if (cda->getAsCString() == "vortex.uniform") {
             auto AnnotatedValue = dyn_cast<AllocaInst>(II->getOperand(0));
-            if (AnnotatedValue == nullptr)
-              continue;
-            std::vector<LoadInst*> loadsToReplace;
-            StoreInst* STore = nullptr;
-            for (auto User : AnnotatedValue->users()) {
-              if (auto LI = dyn_cast<LoadInst>(User))
-                loadsToReplace.push_back(LI);
-              if (auto SI = dyn_cast<StoreInst>(User))
-                STore = SI;
+            if (AnnotatedValue) {
+              uniformInsts.push_back({AnnotatedValue, true});
             }
-            if (STore != nullptr) {
-              IRBuilder<> Builder(STore->getNextNode());
-              auto LoadedValue = Builder.CreateLoad(AnnotatedValue->getAllocatedType(), AnnotatedValue);
-              auto ValueType = LoadedValue->getType();
-              auto IntrinsicFunc = Intrinsic::getDeclaration(F.getParent(), Intrinsic::riscv_vx_uniform, {ValueType, ValueType});
-              auto CallInst = Builder.CreateCall(IntrinsicFunc, {LoadedValue}, ".uniform");
-              for (auto LI : loadsToReplace) {
-                LI->replaceAllUsesWith(CallInst);
-                LI->eraseFromParent();
-              }
-              changed = true;
-              break;
-            }
+            continue;
           }
         }
       }
     }
   }
+
+  for (auto Instr : uniformInsts) {
+    if (Instr.second) {
+      auto AnnotatedValue = reinterpret_cast<AllocaInst*>(Instr.first);
+      std::vector<LoadInst*> loadsToReplace;
+      StoreInst* Store = nullptr;
+      for (auto User : AnnotatedValue->users()) {
+        if (auto LI = dyn_cast<LoadInst>(User))
+          loadsToReplace.push_back(LI);
+        if (auto SI = dyn_cast<StoreInst>(User))
+          Store = SI;
+      }
+      if (Store != nullptr) {
+        IRBuilder<> Builder(Store->getNextNode());
+        auto LoadedValue = Builder.CreateLoad(AnnotatedValue->getAllocatedType(), AnnotatedValue, AnnotatedValue->getName() + ".loaded");
+        auto ValueType = LoadedValue->getType();
+        auto IntrinsicFunc = Intrinsic::getDeclaration(F.getParent(), Intrinsic::riscv_vx_uniform, {ValueType, ValueType});
+        auto CallInst = Builder.CreateCall(IntrinsicFunc, {LoadedValue}, LoadedValue->getName() + ".uniform");
+        for (auto LI : loadsToReplace) {
+          LI->replaceAllUsesWith(CallInst);
+          LI->eraseFromParent();
+        }
+        changed = true;
+      }
+    } else {
+      auto I = Instr.first;
+      IRBuilder<> Builder(I->getNextNode());
+      auto ValueType = I->getType();
+      auto IntrinsicFunc = Intrinsic::getDeclaration(F.getParent(), Intrinsic::riscv_vx_uniform, {ValueType, ValueType});
+      auto CallInst = Builder.CreateCall(IntrinsicFunc, {llvm::UndefValue::get(ValueType)}, I->getName() + ".uniform");
+      I->replaceAllUsesWith(CallInst);
+      CallInst->setArgOperand(0, I);
+      changed = true;
+    }
+  }
+
   return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
 }
 
@@ -1179,10 +1195,6 @@ bool DivergenceTracker::isSourceOfDivergence(const Value *V) {
     LLVM_DEBUG(dbgs() << "*** divergent function argument: " << V->getName() << "\n");
     return true;
   }
-
-  // We are certain about intrinsic calls
-  if (isa<IntrinsicInst>(V))
-    return false;
 
   // We conservatively assume function return values are divergent
   if (isa<CallInst>(V)) {
