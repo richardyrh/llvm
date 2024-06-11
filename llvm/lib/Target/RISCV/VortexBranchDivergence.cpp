@@ -369,10 +369,10 @@ FunctionPass *createVortexBranchDivergence2Pass(int PassMode) {
 }
 
 INITIALIZE_PASS_BEGIN(VortexBranchDivergence0, "vortex-branch-divergence-0",
-                "Vortex Branch Divergence Pre-Pass", false, false)
+                "Vortex Branch Divergence Pre-Processing", false, false)
 INITIALIZE_PASS_DEPENDENCY(UniformityInfoWrapperPass)
 INITIALIZE_PASS_END(VortexBranchDivergence0, "vortex-branch-divergence-0",
-                    "Vortex Branch Divergence Pre-Pass", false, false)
+                    "Vortex Branch Divergence Pre-Processing", false, false)
 
 INITIALIZE_PASS_BEGIN(VortexBranchDivergence1, "vortex-branch-divergence-1",
                       "Vortex Branch Divergence", false, false)
@@ -387,7 +387,7 @@ INITIALIZE_PASS_END(VortexBranchDivergence1, "vortex-branch-divergence-1",
                     "Vortex Branch Divergence", false, false)
 
 INITIALIZE_PASS(VortexBranchDivergence2, "VortexBranchDivergence-2",
-                "Vortex Branch Divergence Post-Pass", false, false)
+                "Vortex Branch Divergence Post-Processing", false, false)
 
 namespace vortex {
 
