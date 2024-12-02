@@ -70,7 +70,6 @@
 #include <cassert>
 #include <cstdint>
 #include <utility>
-
 using namespace llvm;
 
 #define DEBUG_TYPE "regalloc"
@@ -398,11 +397,18 @@ MCRegister RAGreedy::tryAssign(const LiveInterval &VirtReg,
   MCRegister PhysReg;
   for (auto I = Order.begin(), E = Order.end(); I != E && !PhysReg; ++I) {
     assert(*I);
-    if (!Matrix->checkInterference(VirtReg, *I)) {
+    bool assignedBankConflictFree = false;
+    LiveRegMatrix::InterferenceKind Kind = Matrix->checkInterference(VirtReg, *I);
+    if ( Kind <= LiveRegMatrix::IK_RegBank) {
       if (I.isHint())
         return *I;
-      else
-        PhysReg = *I;
+      else {
+        if (!assignedBankConflictFree)
+          PhysReg = *I;
+        
+        if (Kind == LiveRegMatrix::IK_RegBank)
+          assignedBankConflictFree = true;
+      }
     }
   }
   if (!PhysReg.isValid())
@@ -2315,7 +2321,7 @@ void RAGreedy::tryHintRecoloring(const LiveInterval &VirtReg) {
     // Check that the new color matches the register class constraints and
     // that it is free for this live range.
     if (CurrPhys != PhysReg && (!MRI->getRegClass(Reg)->contains(PhysReg) ||
-                                Matrix->checkInterference(LI, PhysReg)))
+                                (Matrix->checkInterference(LI, PhysReg) <= LiveRegMatrix::IK_RegBank)))
       continue;
 
     LLVM_DEBUG(dbgs() << printReg(Reg, TRI) << '(' << printReg(CurrPhys, TRI)

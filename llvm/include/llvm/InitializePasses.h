@@ -256,6 +256,7 @@ void initializeRegAllocEvictionAdvisorAnalysisPass(PassRegistry &);
 void initializeRegAllocFastPass(PassRegistry &);
 void initializeRegAllocPriorityAdvisorAnalysisPass(PassRegistry &);
 void initializeRegAllocScoringPass(PassRegistry &);
+void initializeRegBankConflictMatrixWrapperLegacyPass(PassRegistry &);
 void initializeRegBankSelectPass(PassRegistry &);
 void initializeRegToMemWrapperPassPass(PassRegistry &);
 void initializeRegUsageInfoCollectorLegacyPass(PassRegistry &);

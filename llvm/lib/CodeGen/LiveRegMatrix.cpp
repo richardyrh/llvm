@@ -17,6 +17,8 @@
 #include "llvm/CodeGen/LiveIntervalUnion.h"
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/RegBankConflictMatrix.h"
+#include "llvm/CodeGen/RegisterBankInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
@@ -38,6 +40,7 @@ STATISTIC(NumUnassigned , "Number of registers unassigned");
 char LiveRegMatrixWrapperLegacy::ID = 0;
 INITIALIZE_PASS_BEGIN(LiveRegMatrixWrapperLegacy, "liveregmatrix",
                       "Live Register Matrix", false, false)
+INITIALIZE_PASS_DEPENDENCY(RegBankConflictMatrixWrapperLegacy)
 INITIALIZE_PASS_DEPENDENCY(LiveIntervalsWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(VirtRegMapWrapperLegacy)
 INITIALIZE_PASS_END(LiveRegMatrixWrapperLegacy, "liveregmatrix",
@@ -45,6 +48,7 @@ INITIALIZE_PASS_END(LiveRegMatrixWrapperLegacy, "liveregmatrix",
 
 void LiveRegMatrixWrapperLegacy::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
+  AU.addRequired<RegBankConflictMatrixWrapperLegacy>();
   AU.addRequiredTransitive<LiveIntervalsWrapperPass>();
   AU.addRequiredTransitive<VirtRegMapWrapperLegacy>();
   MachineFunctionPass::getAnalysisUsage(AU);
@@ -53,15 +57,20 @@ void LiveRegMatrixWrapperLegacy::getAnalysisUsage(AnalysisUsage &AU) const {
 bool LiveRegMatrixWrapperLegacy::runOnMachineFunction(MachineFunction &MF) {
   auto &LIS = getAnalysis<LiveIntervalsWrapperPass>().getLIS();
   auto &VRM = getAnalysis<VirtRegMapWrapperLegacy>().getVRM();
-  LRM.init(MF, LIS, VRM);
+  auto &RBCM = getAnalysis<RegBankConflictMatrixWrapperLegacy>().getRBCM();
+  LRM.init(MF, LIS, VRM, RBCM);
   return false;
 }
 
 void LiveRegMatrix::init(MachineFunction &MF, LiveIntervals &pLIS,
-                         VirtRegMap &pVRM) {
+                         VirtRegMap &pVRM,
+                         RegBankConflictMatrix &pRBCM) {
   TRI = MF.getSubtarget().getRegisterInfo();
   LIS = &pLIS;
   VRM = &pVRM;
+  RBI = MF.getSubtarget().getRegBankInfo();
+  MRI = &pVRM.getRegInfo();
+  RBCM = &pRBCM;
 
   unsigned NumRegUnits = TRI->getNumRegUnits();
   if (NumRegUnits != Matrix.size())
@@ -195,6 +204,9 @@ LiveRegMatrix::checkInterference(const LiveInterval &VirtReg,
   if (VirtReg.empty())
     return IK_Free;
 
+  // if(RBI->getRegBank(VirtReg.reg(), *MRI, *TRI) == RBI->getRegBank(Register(PhysReg), *MRI, *TRI))
+  //   return IK_RegBank;
+
   // Regmask interference is the fastest check.
   if (checkRegMaskInterference(VirtReg, PhysReg))
     return IK_RegMask;
@@ -210,6 +222,16 @@ LiveRegMatrix::checkInterference(const LiveInterval &VirtReg,
                                   });
   if (Interference)
     return IK_VirtReg;
+
+  // Check bank conflicts
+  SmallSet<Register, 4> conflictingRegs = RBCM->getConflictingRegs(VirtReg.reg());
+  for (auto &conflictingReg : conflictingRegs) {
+    assert(conflictingReg.isVirtual() && "Physical register in bank conflict set");
+    if (Register PhysConflictReg = VRM->getPhys(conflictingReg)) {
+      if (RBI->getRegBank(PhysConflictReg, *MRI, *TRI) == RBI->getRegBank(PhysReg, *MRI, *TRI)) 
+        return IK_RegBank;
+    }
+  }
 
   return IK_Free;
 }
@@ -295,7 +317,8 @@ LiveRegMatrix LiveRegMatrixAnalysis::run(MachineFunction &MF,
                                          MachineFunctionAnalysisManager &MFAM) {
   auto &LIS = MFAM.getResult<LiveIntervalsAnalysis>(MF);
   auto &VRM = MFAM.getResult<VirtRegMapAnalysis>(MF);
+  auto &RBCM = MFAM.getResult<RegBankConflictMatrixAnalysis>(MF);
   LiveRegMatrix LRM;
-  LRM.init(MF, LIS, VRM);
+  LRM.init(MF, LIS, VRM, RBCM);
   return LRM;
 }
