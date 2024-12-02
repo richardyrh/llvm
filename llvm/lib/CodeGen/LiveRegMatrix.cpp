@@ -17,6 +17,8 @@
 #include "llvm/CodeGen/LiveIntervalUnion.h"
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/RegBankConflictMatrix.h"
+#include "llvm/CodeGen/RegisterBankInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
@@ -38,6 +40,7 @@ STATISTIC(NumUnassigned , "Number of registers unassigned");
 char LiveRegMatrix::ID = 0;
 INITIALIZE_PASS_BEGIN(LiveRegMatrix, "liveregmatrix",
                       "Live Register Matrix", false, false)
+INITIALIZE_PASS_DEPENDENCY(RegBankConflictMatrix)
 INITIALIZE_PASS_DEPENDENCY(LiveIntervals)
 INITIALIZE_PASS_DEPENDENCY(VirtRegMap)
 INITIALIZE_PASS_END(LiveRegMatrix, "liveregmatrix",
@@ -47,6 +50,7 @@ LiveRegMatrix::LiveRegMatrix() : MachineFunctionPass(ID) {}
 
 void LiveRegMatrix::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
+  AU.addRequiredTransitive<RegBankConflictMatrix>();
   AU.addRequiredTransitive<LiveIntervals>();
   AU.addRequiredTransitive<VirtRegMap>();
   MachineFunctionPass::getAnalysisUsage(AU);
@@ -54,8 +58,11 @@ void LiveRegMatrix::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool LiveRegMatrix::runOnMachineFunction(MachineFunction &MF) {
   TRI = MF.getSubtarget().getRegisterInfo();
+  MRI = &MF.getRegInfo();
+  RBI = MF.getSubtarget().getRegBankInfo();
   LIS = &getAnalysis<LiveIntervals>();
   VRM = &getAnalysis<VirtRegMap>();
+  RBCM = &getAnalysis<RegBankConflictMatrix>();
 
   unsigned NumRegUnits = TRI->getNumRegUnits();
   if (NumRegUnits != Matrix.size())
@@ -188,6 +195,9 @@ LiveRegMatrix::checkInterference(const LiveInterval &VirtReg,
   if (VirtReg.empty())
     return IK_Free;
 
+  // if(RBI->getRegBank(VirtReg.reg(), *MRI, *TRI) == RBI->getRegBank(Register(PhysReg), *MRI, *TRI))
+  //   return IK_RegBank;
+
   // Regmask interference is the fastest check.
   if (checkRegMaskInterference(VirtReg, PhysReg))
     return IK_RegMask;
@@ -203,6 +213,16 @@ LiveRegMatrix::checkInterference(const LiveInterval &VirtReg,
                                   });
   if (Interference)
     return IK_VirtReg;
+
+  // Check bank conflicts
+  SmallSet<Register, 4> conflictingRegs = RBCM->getConflictingRegs(VirtReg.reg());
+  for (auto &conflictingReg : conflictingRegs) {
+    assert(conflictingReg.isVirtual() && "Physical register in bank conflict set");
+    if (Register PhysConflictReg = VRM->getPhys(conflictingReg)) {
+      if (RBI->getRegBank(PhysConflictReg, *MRI, *TRI) == RBI->getRegBank(PhysReg, *MRI, *TRI)) 
+        return IK_RegBank;
+    }
+  }
 
   return IK_Free;
 }

@@ -26,6 +26,7 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/CodeGen/LiveIntervalUnion.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/RegBankConflictMatrix.h"
 #include <memory>
 
 namespace llvm {
@@ -34,13 +35,18 @@ class AnalysisUsage;
 class LiveInterval;
 class LiveIntervals;
 class MachineFunction;
+class RegBankConflictMatrix;
+class RegisterBankInfo;
 class TargetRegisterInfo;
 class VirtRegMap;
 
 class LiveRegMatrix : public MachineFunctionPass {
   const TargetRegisterInfo *TRI;
+  MachineRegisterInfo *MRI;
+  const RegisterBankInfo *RBI;
   LiveIntervals *LIS;
   VirtRegMap *VRM;
+  RegBankConflictMatrix *RBCM;
 
   // UserTag changes whenever virtual registers have been modified.
   unsigned UserTag = 0;
@@ -83,6 +89,11 @@ public:
   enum InterferenceKind {
     /// No interference, go ahead and assign.
     IK_Free = 0,
+
+    /// Register bank interference. Both registers belong to the same bank and
+    /// to the same instruction. Does not prevent register allocation, but should 
+    /// be avoided if ever possible.
+    IK_RegBank,
 
     /// Virtual register interference. There are interfering virtual registers
     /// assigned to PhysReg or its aliases. This interference could be resolved

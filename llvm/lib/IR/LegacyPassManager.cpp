@@ -1,14 +1,5 @@
-//===- LegacyPassManager.cpp - LLVM Pass Infrastructure Implementation ----===//
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
-//===----------------------------------------------------------------------===//
-//
-// This file implements the legacy LLVM Pass Manager infrastructure.
-//
-//===----------------------------------------------------------------------===//
+// Add at the top of the file, before including Debug.h
+#define DEBUG_TYPE "passmanager"
 
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/ADT/MapVector.h"
@@ -769,14 +760,18 @@ Pass *PMTopLevelManager::findAnalysisPass(AnalysisID AID) {
     return P;
 
   // Check pass managers
-  for (PMDataManager *PassManager : PassManagers)
-    if (Pass *P = PassManager->findAnalysisPass(AID, false))
+  for (PMDataManager *PassManager : PassManagers) {
+    if (Pass *P = PassManager->findAnalysisPass(AID, false)) {
       return P;
+    }
+  }
 
   // Check other pass managers
-  for (PMDataManager *IndirectPassManager : IndirectPassManagers)
-    if (Pass *P = IndirectPassManager->findAnalysisPass(AID, false))
+  for (PMDataManager *IndirectPassManager : IndirectPassManagers) {
+    if (Pass *P = IndirectPassManager->findAnalysisPass(AID, false)) {
       return P;
+    }
+  }
 
   return nullptr;
 }
