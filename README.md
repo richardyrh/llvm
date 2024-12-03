@@ -1,3 +1,27 @@
+This repository derives from Vortex's LLVM compiler stack, with some notable changes:
+
+* Instruction words are now 64-bit
+* Each instruction can contain up to 4 source registers and 1 destination register
+* Register encoding is now 8-bits, which means up to 256 architectural registers
+* Currently, the compiler defines 128 GPRs and 64 FPRs
+* Two more bits for opcode
+* Reserved instruction space for predicates
+* Much larger immediates - up to 32-bit for I-type instructions
+* New instruction formats that exploit the extra operands and larger immediates
+
+The compiler isn't 100% functional yet. ISA specification is WIP.
+
+Compiling `clang` is similar to the normal LLVM compilation process; `compiler-rt`
+and `libcxx` does seem to be broken currently so they cannot be enabled. To use `clang`
+after compiling it, you must have a functional rv32 GNU toolchain. There should
+not be a rv64 toolchain existing in the same place as the rv32 toolchain.
+
+To compile `hello.c` to an object file, for example:
+
+```bash
+./bin/clang --target=riscv32-unknown-elf -march=rv32imafd --sysroot=$RV32_TOOLCHAIN/riscv32-unknown-elf --gcc-toolchain=$RV32_TOOLCHAIN ../hello.c -v -c -o hello.o
+```
+
 # The LLVM Compiler Infrastructure
 
 This directory and its sub-directories contain the source code for LLVM,
