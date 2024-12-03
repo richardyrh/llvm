@@ -31,23 +31,26 @@ class InstFormat<bits<5> val> {
   bits<5> Value = val;
 }
 def InstFormatPseudo : InstFormat<0>;
-def InstFormatR      : InstFormat<1>;
+def InstFormatR5     : InstFormat<1>;
 def InstFormatR4     : InstFormat<2>;
-def InstFormatI      : InstFormat<3>;
-def InstFormatS      : InstFormat<4>;
-def InstFormatB      : InstFormat<5>;
-def InstFormatU      : InstFormat<6>;
-def InstFormatJ      : InstFormat<7>;
-def InstFormatCR     : InstFormat<8>;
-def InstFormatCI     : InstFormat<9>;
-def InstFormatCSS    : InstFormat<10>;
-def InstFormatCIW    : InstFormat<11>;
-def InstFormatCL     : InstFormat<12>;
-def InstFormatCS     : InstFormat<13>;
-def InstFormatCA     : InstFormat<14>;
-def InstFormatCB     : InstFormat<15>;
-def InstFormatCJ     : InstFormat<16>;
-def InstFormatOther  : InstFormat<17>;
+def InstFormatR3     : InstFormat<3>;
+def InstFormatI3     : InstFormat<4>;
+def InstFormatII3    : InstFormat<5>;
+def InstFormatI2     : InstFormat<6>;
+def InstFormatS      : InstFormat<7>;
+def InstFormatB      : InstFormat<8>;
+def InstFormatU      : InstFormat<9>;
+def InstFormatJ      : InstFormat<10>;
+def InstFormatCR     : InstFormat<11>;
+def InstFormatCI     : InstFormat<12>;
+def InstFormatCSS    : InstFormat<13>;
+def InstFormatCIW    : InstFormat<14>;
+def InstFormatCL     : InstFormat<15>;
+def InstFormatCS     : InstFormat<16>;
+def InstFormatCA     : InstFormat<17>;
+def InstFormatCB     : InstFormat<18>;
+def InstFormatCJ     : InstFormat<19>;
+def InstFormatOther  : InstFormat<20>;
 
 class RISCVVConstraint<bits<3> val> {
   bits<3> Value = val;
@@ -153,13 +156,13 @@ def OPC_CUSTOM_3  : RISCVOpcode<"CUSTOM_3",  0b1111011>;
 class RVInst<dag outs, dag ins, string opcodestr, string argstr,
              list<dag> pattern, InstFormat format>
     : Instruction {
-  field bits<32> Inst;
+  field bits<64> Inst;
   // SoftFail is a field the disassembler can use to provide a way for
   // instructions to not match without killing the whole decode process. It is
   // mainly used for ARM, but Tablegen expects this field to exist or it fails
   // to build the decode table.
-  field bits<32> SoftFail = 0;
-  let Size = 4;
+  field bits<64> SoftFail = 0;
+  let Size = 8;
 
   bits<7> Opcode = 0;
 
@@ -260,189 +263,325 @@ class PseudoStore<string opcodestr, RegisterClass rsty = GPR>
 // instruction set manual (R, I, S, B, U, J) with sub-formats (e.g. RVInstR4,
 // RVInstRAtomic) sorted alphabetically.
 
+class RVInstR5<bits<7> funct7, bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs,
+               dag ins, string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR5> {
+  // bits<4> pred;
+  bits<8> rs4;
+  bits<8> rs3;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59} = 0;
+  let Inst{58-52} = funct7;
+  let Inst{51-44} = rs4;
+  let Inst{43-36} = rs3;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
+  let Opcode = opcode.Value;
+}
+
+class RVInstR4<bits<2> funct2, bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs,
+              dag ins, string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR4> {
+  // bits<4> pred;
+  bits<8> rs3;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-54} = 0;
+  let Inst{53-52} = funct2;
+  let Inst{51-44} = 0;
+  let Inst{43-36} = rs3;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
+  let Opcode = opcode.Value;
+}
+
+class RVInstR4Frm<bits<2> funct2, bits<2> ext2, RISCVOpcode opcode, dag outs,
+                 dag ins, string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR4> {
+  // bits<4> pred;
+  bits<8> rs3;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<3> frm;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-54} = 0;
+  let Inst{53-52} = funct2;
+  let Inst{51-44} = 0;
+  let Inst{43-36} = rs3;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = frm;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
+  let Opcode = opcode.Value;
+}
+
+class RVInstR3<bits<7> funct7, bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs,
+              dag ins, string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
+  // bits<4> pred;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59} = 0;
+  let Inst{58-52} = funct7;
+  let Inst{51-44} = 0;
+  let Inst{43-36} = 0;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
+  let Opcode = opcode.Value;
+}
+
+// compatibility
 class RVInstR<bits<7> funct7, bits<3> funct3, RISCVOpcode opcode, dag outs,
               dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
-  bits<5> rs2;
-  bits<5> rs1;
-  bits<5> rd;
+    : RVInstR3<funct7, funct3, 0, opcode, outs, ins, opcodestr, argstr> {}
 
-  let Inst{31-25} = funct7;
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+class RVInstR3Atomic<bits<5> funct5, bit aq, bit rl, bits<3> funct3, bits<2> ext2,
+                     RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
+                     string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
+  // bits<4> pred;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59} = 0;
+  let Inst{58-54} = funct5;
+  let Inst{53} = aq;
+  let Inst{52} = rl;
+  let Inst{51-44} = 0;
+  let Inst{43-36} = 0;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
 
-class RVInstR4<bits<2> funct2, bits<3> funct3, RISCVOpcode opcode, dag outs,
-               dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR4> {
-  bits<5> rs3;
-  bits<5> rs2;
-  bits<5> rs1;
-  bits<5> rd;
-
-  let Inst{31-27} = rs3;
-  let Inst{26-25} = funct2;
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
-  let Opcode = opcode.Value;
-}
-
-class RVInstR4Frm<bits<2> funct2, RISCVOpcode opcode, dag outs, dag ins,
+class RVInstR3Frm<bits<7> funct7, bits<2> ext2, RISCVOpcode opcode, dag outs, dag ins,
                   string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR4> {
-  bits<5> rs3;
-  bits<5> rs2;
-  bits<5> rs1;
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
+  // bits<4> pred;
+  bits<8> rs2;
+  bits<8> rs1;
   bits<3> frm;
-  bits<5> rd;
+  bits<8> rd;
 
-  let Inst{31-27} = rs3;
-  let Inst{26-25} = funct2;
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = frm;
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59} = 0;
+  let Inst{58-52} = funct7;
+  let Inst{51-44} = 0;
+  let Inst{43-36} = 0;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = frm;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
 
-class RVInstRAtomic<bits<5> funct5, bit aq, bit rl, bits<3> funct3,
-                    RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
-                    string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
-  bits<5> rs2;
-  bits<5> rs1;
-  bits<5> rd;
+class RVInstI2<bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs, dag ins,
+               string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI2> {
+  // bits<4> pred;
+  bits<32> imm32;
+  bits<8> rs1;
+  bits<8> rd;
 
-  let Inst{31-27} = funct5;
-  let Inst{26} = aq;
-  let Inst{25} = rl;
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm32{23-0};
+  let Inst{35-28} = imm32{31-24};
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
 
-class RVInstRFrm<bits<7> funct7, RISCVOpcode opcode, dag outs, dag ins,
-                 string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
-  bits<5> rs2;
-  bits<5> rs1;
-  bits<3> frm;
-  bits<5> rd;
+class RVInstI2Shift<bits<5> imm11_7, bits<3> funct3, bits<2> ext2, RISCVOpcode opcode,
+                   dag outs, dag ins, string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI2> {
+  // bits<4> pred;
+  bits<6> shamt;
+  bits<8> rs1;
+  bits<8> rd;
 
-  let Inst{31-25} = funct7;
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = frm;
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-48} = 0; // imm23_12
+  let Inst{47-43} = imm11_7;
+  let Inst{42} = 0; // imm6
+  let Inst{41-36} = shamt; // imm5_0
+  let Inst{35-28} = 0; // imm31_24
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
 
+class RVInstI2ShiftW<bits<7> imm11_5, bits<3> funct3, bits<2> ext2, RISCVOpcode opcode,
+                    dag outs, dag ins, string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI2> {
+  // bits<4> pred;
+  bits<5> shamt;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-48} = 0; // imm23_12
+  let Inst{47-41} = imm11_5;
+  let Inst{40-36} = shamt; // imm4_0
+  let Inst{35-28} = 0; // imm31_24
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
+  let Opcode = opcode.Value;
+}
+
+// compatibility
 class RVInstI<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
               string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
-  bits<12> imm12;
-  bits<5> rs1;
-  bits<5> rd;
-
-  let Inst{31-20} = imm12;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
-  let Opcode = opcode.Value;
-}
+    : RVInstI2<funct3, 0, opcode, outs, ins, opcodestr, argstr> {}
 
 class RVInstIShift<bits<5> imm11_7, bits<3> funct3, RISCVOpcode opcode,
                    dag outs, dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
-  bits<6> shamt;
-  bits<5> rs1;
-  bits<5> rd;
-
-  let Inst{31-27} = imm11_7;
-  let Inst{26} = 0;
-  let Inst{25-20} = shamt;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
-  let Opcode = opcode.Value;
-}
+    : RVInstI2Shift<imm11_7, funct3, 0, opcode, outs, ins, opcodestr, argstr> {}
 
 class RVInstIShiftW<bits<7> imm11_5, bits<3> funct3, RISCVOpcode opcode,
                     dag outs, dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
-  bits<5> shamt;
-  bits<5> rs1;
-  bits<5> rd;
+    : RVInstI2ShiftW<imm11_5, funct3, 0, opcode, outs, ins, opcodestr, argstr> {}
 
-  let Inst{31-25} = imm11_5;
-  let Inst{24-20} = shamt;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+class RVInstI3<bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs, dag ins,
+                string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI3> {
+  // bits<4> pred;
+  bits<24> imm24;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm24;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
 
-class RVInstS<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
-              string opcodestr, string argstr>
+class RVInstII3<bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs, dag ins,
+                string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatII3> {
+  // bits<4> pred;
+  bits<12> imm2_12;
+  bits<12> imm1_12;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-48} = imm2_12;
+  let Inst{47-36} = imm1_12;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
+  let Opcode = opcode.Value;
+}
+
+class RVInstS<bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs, dag ins,
+             string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatS> {
-  bits<12> imm12;
-  bits<5> rs2;
-  bits<5> rs1;
+  // bits<4> pred;
+  bits<24> imm24;
+  bits<8> rs1;
+  bits<8> rs2;
 
-  let Inst{31-25} = imm12{11-5};
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = imm12{4-0};
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm24;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = 0;
+  let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
 
-class RVInstB<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
-              string opcodestr, string argstr>
+class RVInstB<bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs, dag ins,
+             string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatB> {
-  bits<12> imm12;
-  bits<5> rs2;
-  bits<5> rs1;
+  // bits<4> pred;
+  bits<24> imm24;
+  bits<8> rs1;
+  bits<8> rs2;
 
-  let Inst{31} = imm12{11};
-  let Inst{30-25} = imm12{9-4};
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-8} = imm12{3-0};
-  let Inst{7} = imm12{10};
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm24;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = 0;
+  let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
 
-class RVInstU<RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
+class RVInstU<bits<2> ext2, RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
               string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatU> {
-  bits<20> imm20;
-  bits<5> rd;
+  // bits<4> pred;
+  bits<32> imm32;
+  bits<8> rd;
 
-  let Inst{31-12} = imm20;
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm32{23-0};
+  let Inst{35-28} = imm32{31-24};
+  let Inst{27-20} = 0;
+  let Inst{19-17} = 0;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
 
-class RVInstJ<RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
+class RVInstJ<bits<2> ext2, RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
               string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatJ> {
-  bits<20> imm20;
-  bits<5> rd;
+  // bits<4> pred;
+  bits<32> imm32;
+  bits<8> rd;
 
-  let Inst{31} = imm20{19};
-  let Inst{30-21} = imm20{9-0};
-  let Inst{20} = imm20{10};
-  let Inst{19-12} = imm20{18-11};
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm32{23-0};
+  let Inst{35-28} = imm32{31-24};
+  let Inst{27-20} = 0;
+  let Inst{19-17} = 0;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
 
@@ -450,80 +589,181 @@ class RVInstJ<RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
 // Instruction classes for .insn directives
 //===----------------------------------------------------------------------===//
 
-class DirectiveInsnR<dag outs, dag ins, string argstr>
-  : RVInst<outs, ins, "", "", [], InstFormatR> {
+class DirectiveInsnR5<dag outs, dag ins, string argstr>
+  : RVInst<outs, ins, "", "", [], InstFormatR5> {
   bits<7> opcode;
+  bits<2> ext2;
   bits<7> funct7;
   bits<3> funct3;
+  // bits<4> pred;
 
-  bits<5> rs2;
-  bits<5> rs1;
-  bits<5> rd;
+  bits<8> rs4;
+  bits<8> rs3;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
 
-  let Inst{31-25} = funct7;
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59} = 0;
+  let Inst{58-52} = funct7;
+  let Inst{51-44} = rs4;
+  let Inst{43-36} = rs3;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode;
 
-  let AsmString = ".insn r " # argstr;
+  let AsmString = ".insn r5 " # argstr;
 }
 
 class DirectiveInsnR4<dag outs, dag ins, string argstr>
   : RVInst<outs, ins, "", "", [], InstFormatR4> {
   bits<7> opcode;
-  bits<2> funct2;
+  bits<2> ext2;
+  bits<7> funct7;
   bits<3> funct3;
+  // bits<4> pred;
 
-  bits<5> rs3;
-  bits<5> rs2;
-  bits<5> rs1;
-  bits<5> rd;
+  bits<8> rs3;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
 
-  let Inst{31-27} = rs3;
-  let Inst{26-25} = funct2;
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59} = 0;
+  let Inst{58-52} = funct7;
+  let Inst{51-44} = 0;
+  let Inst{43-36} = rs3;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode;
 
   let AsmString = ".insn r4 " # argstr;
 }
 
-class DirectiveInsnI<dag outs, dag ins, string argstr>
-  : RVInst<outs, ins, "", "", [], InstFormatI> {
+class DirectiveInsnR3<dag outs, dag ins, string argstr>
+  : RVInst<outs, ins, "", "", [], InstFormatR3> {
   bits<7> opcode;
+  bits<2> ext2;
+  bits<7> funct7;
   bits<3> funct3;
+  // bits<4> pred;
 
-  bits<12> imm12;
-  bits<5> rs1;
-  bits<5> rd;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
 
-  let Inst{31-20} = imm12;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59} = 0;
+  let Inst{58-52} = funct7;
+  let Inst{51-44} = 0;
+  let Inst{43-36} = 0;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
+  let Opcode = opcode;
+
+  let AsmString = ".insn r " # argstr;
+}
+
+class DirectiveInsnI2<dag outs, dag ins, string argstr>
+  : RVInst<outs, ins, "", "", [], InstFormatI2> {
+  bits<7> opcode;
+  bits<2> ext2;
+  bits<3> funct3;
+  // bits<4> pred;
+
+  bits<32> imm32;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm32{23-0};
+  let Inst{35-28} = imm32{31-24};
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode;
 
   let AsmString = ".insn i " # argstr;
 }
 
+class DirectiveInsnI3<dag outs, dag ins, string argstr>
+  : RVInst<outs, ins, "", "", [], InstFormatI3> {
+  bits<7> opcode;
+  bits<2> ext2;
+  bits<3> funct3;
+  // bits<4> pred;
+
+  bits<24> imm24;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm24;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
+  let Opcode = opcode;
+
+  let AsmString = ".insn i3 " # argstr;
+}
+
+class DirectiveInsnII3<dag outs, dag ins, string argstr>
+  : RVInst<outs, ins, "", "", [], InstFormatII3> {
+  bits<7> opcode;
+  bits<2> ext2;
+  bits<3> funct3;
+  // bits<4> pred;
+
+  bits<12> imm2_12;
+  bits<12> imm1_12;
+  bits<8> rs2;
+  bits<8> rs1;
+  bits<8> rd;
+
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-48} = imm2_12;
+  let Inst{47-36} = imm1_12;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
+  let Opcode = opcode;
+
+  let AsmString = ".insn ii3 " # argstr;
+}
+
 class DirectiveInsnS<dag outs, dag ins, string argstr>
   : RVInst<outs, ins, "", "", [], InstFormatS> {
   bits<7> opcode;
+  bits<2> ext2;
   bits<3> funct3;
 
-  bits<12> imm12;
-  bits<5> rs2;
-  bits<5> rs1;
+  // bits<4> pred;
+  bits<24> imm24;
+  bits<8> rs1;
+  bits<8> rs2;
 
-  let Inst{31-25} = imm12{11-5};
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = imm12{4-0};
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm24;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = 0;
+  let Inst{8-7} = ext2;
   let Opcode = opcode;
 
   let AsmString = ".insn s " # argstr;
@@ -532,19 +772,21 @@ class DirectiveInsnS<dag outs, dag ins, string argstr>
 class DirectiveInsnB<dag outs, dag ins, string argstr>
   : RVInst<outs, ins, "", "", [], InstFormatB> {
   bits<7> opcode;
+  bits<2> ext2;
   bits<3> funct3;
 
-  bits<12> imm12;
-  bits<5> rs2;
-  bits<5> rs1;
+  // bits<4> pred;
+  bits<24> imm24;
+  bits<8> rs1;
+  bits<8> rs2;
 
-  let Inst{31} = imm12{11};
-  let Inst{30-25} = imm12{9-4};
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-8} = imm12{3-0};
-  let Inst{7} = imm12{10};
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm24;
+  let Inst{35-28} = rs2;
+  let Inst{27-20} = rs1;
+  let Inst{19-17} = funct3;
+  let Inst{16-9} = 0;
+  let Inst{8-7} = ext2;
   let Opcode = opcode;
 
   let AsmString = ".insn b " # argstr;
@@ -553,12 +795,19 @@ class DirectiveInsnB<dag outs, dag ins, string argstr>
 class DirectiveInsnU<dag outs, dag ins, string argstr>
   : RVInst<outs, ins, "", "", [], InstFormatU> {
   bits<7> opcode;
+  bits<2> ext2;
 
-  bits<20> imm20;
-  bits<5> rd;
+  // bits<4> pred;
+  bits<32> imm32;
+  bits<8> rd;
 
-  let Inst{31-12} = imm20;
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm32{23-0};
+  let Inst{35-28} = imm32{31-24};
+  let Inst{27-20} = 0;
+  let Inst{19-17} = 0;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode;
 
   let AsmString = ".insn u " # argstr;
@@ -567,12 +816,19 @@ class DirectiveInsnU<dag outs, dag ins, string argstr>
 class DirectiveInsnJ<dag outs, dag ins, string argstr>
   : RVInst<outs, ins, "", "", [], InstFormatJ> {
   bits<7> opcode;
+  bits<2> ext2;
 
-  bits<20> imm20;
-  bits<5> rd;
+  // bits<4> pred;
+  bits<32> imm32;
+  bits<8> rd;
 
-  let Inst{31-12} = imm20;
-  let Inst{11-7} = rd;
+  let Inst{63-60} = 0; // pred;
+  let Inst{59-36} = imm32{23-0};
+  let Inst{35-28} = imm32{31-24};
+  let Inst{27-20} = 0;
+  let Inst{19-17} = 0;
+  let Inst{16-9} = rd;
+  let Inst{8-7} = ext2;
   let Opcode = opcode;
 
   let AsmString = ".insn j " # argstr;

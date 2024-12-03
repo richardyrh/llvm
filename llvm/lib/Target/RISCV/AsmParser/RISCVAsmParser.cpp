@@ -392,6 +392,20 @@ public:
     return IsValid && VK == RISCVMCExpr::VK_RISCV_None;
   }
 
+  template <int N> bool isBareSimmNLsb000() const {
+    int64_t Imm;
+    RISCVMCExpr::VariantKind VK = RISCVMCExpr::VK_RISCV_None;
+    if (!isImm())
+      return false;
+    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
+    bool IsValid;
+    if (!IsConstantImm)
+      IsValid = RISCVAsmParser::classifySymbolRef(getImm(), VK);
+    else
+      IsValid = isShiftedInt<N - 3, 3>(Imm);
+    return IsValid && VK == RISCVMCExpr::VK_RISCV_None;
+  }
+
   // Predicate methods for AsmOperands defined in RISCVInstrInfo.td
 
   bool isBareSymbol() const {
@@ -568,6 +582,7 @@ public:
   bool isUImm3() { return IsUImm<3>(); }
   bool isUImm5() { return IsUImm<5>(); }
   bool isUImm7() { return IsUImm<7>(); }
+  bool isUImm8() { return IsUImm<8>(); }
 
   bool isRnumArg() const {
     int64_t Imm;
@@ -751,7 +766,84 @@ public:
     }
   }
 
+  bool isSImm24() const {
+    RISCVMCExpr::VariantKind VK = RISCVMCExpr::VK_RISCV_None;
+    int64_t Imm;
+    bool IsValid;
+    if (!isImm())
+      return false;
+    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
+    if (!IsConstantImm)
+      IsValid = RISCVAsmParser::classifySymbolRef(getImm(), VK);
+    else
+      IsValid = isInt<24>(Imm);
+    return IsValid && ((IsConstantImm && VK == RISCVMCExpr::VK_RISCV_None) ||
+                       VK == RISCVMCExpr::VK_RISCV_LO ||
+                       VK == RISCVMCExpr::VK_RISCV_PCREL_LO ||
+                       VK == RISCVMCExpr::VK_RISCV_TPREL_LO);
+  }
+
+  bool isSImm24Lsb000() const { return isBareSimmNLsb000<24>(); }
+
+  bool isSImm32() const {
+    RISCVMCExpr::VariantKind VK = RISCVMCExpr::VK_RISCV_None;
+    int64_t Imm;
+    bool IsValid;
+    if (!isImm())
+      return false;
+    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
+    if (!IsConstantImm)
+      IsValid = RISCVAsmParser::classifySymbolRef(getImm(), VK);
+    else
+      IsValid = isInt<32>(Imm);
+    return IsValid && ((IsConstantImm && VK == RISCVMCExpr::VK_RISCV_None) ||
+                       VK == RISCVMCExpr::VK_RISCV_LO ||
+                       VK == RISCVMCExpr::VK_RISCV_PCREL_LO ||
+                       VK == RISCVMCExpr::VK_RISCV_TPREL_LO);
+  }
+
+  bool isUImm32LUI() const {
+    RISCVMCExpr::VariantKind VK = RISCVMCExpr::VK_RISCV_None;
+    int64_t Imm;
+    bool IsValid;
+    if (!isImm())
+      return false;
+    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
+    if (!IsConstantImm) {
+      IsValid = RISCVAsmParser::classifySymbolRef(getImm(), VK);
+      return IsValid && (VK == RISCVMCExpr::VK_RISCV_HI ||
+                         VK == RISCVMCExpr::VK_RISCV_TPREL_HI);
+    } else {
+      return isUInt<32>(Imm) && (VK == RISCVMCExpr::VK_RISCV_None ||
+                                 VK == RISCVMCExpr::VK_RISCV_HI ||
+                                 VK == RISCVMCExpr::VK_RISCV_TPREL_HI);
+    }
+  }
+
+  bool isUImm32AUIPC() const {
+    RISCVMCExpr::VariantKind VK = RISCVMCExpr::VK_RISCV_None;
+    int64_t Imm;
+    bool IsValid;
+    if (!isImm())
+      return false;
+    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
+    if (!IsConstantImm) {
+      IsValid = RISCVAsmParser::classifySymbolRef(getImm(), VK);
+      return IsValid && (VK == RISCVMCExpr::VK_RISCV_PCREL_HI ||
+                         VK == RISCVMCExpr::VK_RISCV_GOT_HI ||
+                         VK == RISCVMCExpr::VK_RISCV_TLS_GOT_HI ||
+                         VK == RISCVMCExpr::VK_RISCV_TLS_GD_HI);
+    } else {
+      return isUInt<32>(Imm) && (VK == RISCVMCExpr::VK_RISCV_None ||
+                                 VK == RISCVMCExpr::VK_RISCV_PCREL_HI ||
+                                 VK == RISCVMCExpr::VK_RISCV_GOT_HI ||
+                                 VK == RISCVMCExpr::VK_RISCV_TLS_GOT_HI ||
+                                 VK == RISCVMCExpr::VK_RISCV_TLS_GD_HI);
+    }
+  }
+
   bool isSImm21Lsb0JAL() const { return isBareSimmNLsb0<21>(); }
+  bool isSImm32Lsb000JAL() const { return isBareSimmNLsb000<32>(); }
 
   bool isImmZero() const {
     if (!isImm())
@@ -1157,6 +1249,8 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 5) - 1);
   case Match_InvalidUImm7:
     return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 7) - 1);
+  case Match_InvalidUImm8:
+    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 8) - 1);
   case Match_InvalidSImm5:
     return generateImmOutOfRangeError(Operands, ErrorInfo, -(1 << 4),
                                       (1 << 4) - 1);
@@ -1212,25 +1306,30 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     return generateImmOutOfRangeError(
         Operands, ErrorInfo, -(1 << 11), (1 << 11) - 32,
         "immediate must be a multiple of 32 bytes in the range");
-  case Match_InvalidSImm13Lsb0:
+  case Match_InvalidSImm24Lsb000:
     return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 12), (1 << 12) - 2,
-        "immediate must be a multiple of 2 bytes in the range");
-  case Match_InvalidUImm20LUI:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 20) - 1,
-                                      "operand must be a symbol with "
-                                      "%hi/%tprel_hi modifier or an integer in "
-                                      "the range");
-  case Match_InvalidUImm20AUIPC:
+        Operands, ErrorInfo, -(1 << 23), (1 << 23) - 8,
+        "immediate must be a multiple of 8 bytes in the range");
+  case Match_InvalidUImm32AUIPC:
     return generateImmOutOfRangeError(
-        Operands, ErrorInfo, 0, (1 << 20) - 1,
+        Operands, ErrorInfo, 0, (1ULL << 32) - 1ULL,
         "operand must be a symbol with a "
         "%pcrel_hi/%got_pcrel_hi/%tls_ie_pcrel_hi/%tls_gd_pcrel_hi modifier or "
         "an integer in the range");
-  case Match_InvalidSImm21Lsb0JAL:
+  case Match_InvalidUImm32LUI:
+    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1ULL << 32) - 1ULL,
+                                      "operand must be a symbol with "
+                                      "%hi/%tprel_hi modifier or an integer in "
+                                      "the range");
+  case Match_InvalidSImm32:
     return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 20), (1 << 20) - 2,
-        "immediate must be a multiple of 2 bytes in the range");
+        Operands, ErrorInfo, -(1ULL << 31), (1ULL << 31) - 1ULL,
+        "operand must be a symbol with %lo/%pcrel_lo/%tprel_lo modifier or an "
+        "integer in the range");
+  case Match_InvalidSImm32Lsb000JAL:
+    return generateImmOutOfRangeError(
+        Operands, ErrorInfo, -(1ULL << 31), (1ULL << 31) - 8ULL,
+        "immediate must be a multiple of 8 bytes in the range");
   case Match_InvalidCSRSystemRegister: {
     return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 12) - 1,
                                       "operand must be a valid system register "

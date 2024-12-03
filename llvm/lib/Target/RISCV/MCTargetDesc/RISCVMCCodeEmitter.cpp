@@ -77,6 +77,10 @@ public:
                              SmallVectorImpl<MCFixup> &Fixups,
                              const MCSubtargetInfo &STI) const;
 
+  unsigned getImmOpValueAsr3(const MCInst &MI, unsigned OpNo,
+                             SmallVectorImpl<MCFixup> &Fixups,
+                             const MCSubtargetInfo &STI) const;
+
   unsigned getImmOpValue(const MCInst &MI, unsigned OpNo,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const;
@@ -213,8 +217,14 @@ void RISCVMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
     break;
   }
   case 4: {
+    llvm_unreachable("This compiler should not be emitting 32-bit instructions.");
     uint32_t Bits = getBinaryCodeForInstr(MI, Fixups, STI);
     support::endian::write(OS, Bits, support::little);
+    break;
+  }
+  case 8: {
+    uint64_t Bits = getBinaryCodeForInstr(MI, Fixups, STI);
+    support::endian::write<uint64_t>(OS, Bits, support::little);
     break;
   }
   }
@@ -247,6 +257,21 @@ RISCVMCCodeEmitter::getImmOpValueAsr1(const MCInst &MI, unsigned OpNo,
     unsigned Res = MO.getImm();
     assert((Res & 1) == 0 && "LSB is non-zero");
     return Res >> 1;
+  }
+
+  return getImmOpValue(MI, OpNo, Fixups, STI);
+}
+
+unsigned
+RISCVMCCodeEmitter::getImmOpValueAsr3(const MCInst &MI, unsigned OpNo,
+                                      SmallVectorImpl<MCFixup> &Fixups,
+                                      const MCSubtargetInfo &STI) const {
+  const MCOperand &MO = MI.getOperand(OpNo);
+
+  if (MO.isImm()) {
+    unsigned Res = MO.getImm();
+    assert((Res & 7) == 0 && "LSB is non-zero");
+    return Res >> 3;
   }
 
   return getImmOpValue(MI, OpNo, Fixups, STI);
@@ -287,7 +312,7 @@ unsigned RISCVMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
       llvm_unreachable(
           "VK_RISCV_TPREL_ADD should not represent an instruction operand");
     case RISCVMCExpr::VK_RISCV_LO:
-      if (MIFrm == RISCVII::InstFormatI)
+      if (MIFrm == RISCVII::InstFormatI2)
         FixupKind = RISCV::fixup_riscv_lo12_i;
       else if (MIFrm == RISCVII::InstFormatS)
         FixupKind = RISCV::fixup_riscv_lo12_s;
@@ -300,7 +325,7 @@ unsigned RISCVMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
       RelaxCandidate = true;
       break;
     case RISCVMCExpr::VK_RISCV_PCREL_LO:
-      if (MIFrm == RISCVII::InstFormatI)
+      if (MIFrm == RISCVII::InstFormatI2)
         FixupKind = RISCV::fixup_riscv_pcrel_lo12_i;
       else if (MIFrm == RISCVII::InstFormatS)
         FixupKind = RISCV::fixup_riscv_pcrel_lo12_s;
@@ -317,7 +342,7 @@ unsigned RISCVMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
       FixupKind = RISCV::fixup_riscv_got_hi20;
       break;
     case RISCVMCExpr::VK_RISCV_TPREL_LO:
-      if (MIFrm == RISCVII::InstFormatI)
+      if (MIFrm == RISCVII::InstFormatI2)
         FixupKind = RISCV::fixup_riscv_tprel_lo12_i;
       else if (MIFrm == RISCVII::InstFormatS)
         FixupKind = RISCV::fixup_riscv_tprel_lo12_s;

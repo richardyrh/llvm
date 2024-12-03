@@ -54,8 +54,10 @@ def LSWidth16    : RISCVWidth<0b0101>;
 def LSWidth32    : RISCVWidth<0b0110>;
 def LSWidth64    : RISCVWidth<0b0111>;
 
+// TODO: none of these will work
+
 class RVInstSetiVLi<dag outs, dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI2> {
   bits<5> uimm;
   bits<5> rd;
   bits<10> vtypei;
@@ -72,7 +74,7 @@ class RVInstSetiVLi<dag outs, dag ins, string opcodestr, string argstr>
 }
 
 class RVInstSetVLi<dag outs, dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI2> {
   bits<5> rs1;
   bits<5> rd;
   bits<11> vtypei;
@@ -88,7 +90,7 @@ class RVInstSetVLi<dag outs, dag ins, string opcodestr, string argstr>
 }
 
 class RVInstSetVL<dag outs, dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> rs2;
   bits<5> rs1;
   bits<5> rd;
@@ -106,7 +108,7 @@ class RVInstSetVL<dag outs, dag ins, string opcodestr, string argstr>
 
 class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
                string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> vs2;
   bits<5> vs1;
   bits<5> vd;
@@ -126,7 +128,7 @@ class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
 
 class RVInstVX<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
                 string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> vs2;
   bits<5> rs1;
   bits<5> vd;
@@ -146,7 +148,7 @@ class RVInstVX<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
 
 class RVInstV2<bits<6> funct6, bits<5> vs2, RISCVVFormat opv, dag outs, dag ins,
                 string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> rs1;
   bits<5> vd;
   bit vm;
@@ -165,7 +167,7 @@ class RVInstV2<bits<6> funct6, bits<5> vs2, RISCVVFormat opv, dag outs, dag ins,
 
 class RVInstIVI<bits<6> funct6, dag outs, dag ins, string opcodestr,
                 string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> vs2;
   bits<5> imm;
   bits<5> vd;
@@ -185,7 +187,7 @@ class RVInstIVI<bits<6> funct6, dag outs, dag ins, string opcodestr,
 
 class RVInstV<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, dag outs,
               dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> vs2;
   bits<5> vd;
   bit vm;
@@ -205,7 +207,7 @@ class RVInstV<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, dag outs,
 class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,
                 bits<3> width, dag outs, dag ins, string opcodestr,
                 string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> rs1;
   bits<5> vd;
   bit vm;
@@ -226,7 +228,7 @@ class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,
 
 class RVInstVLS<bits<3> nf, bit mew, bits<3> width,
                 dag outs, dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> rs2;
   bits<5> rs1;
   bits<5> vd;
@@ -248,7 +250,7 @@ class RVInstVLS<bits<3> nf, bit mew, bits<3> width,
 
 class RVInstVLX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
                 dag outs, dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> vs2;
   bits<5> rs1;
   bits<5> vd;
@@ -271,7 +273,7 @@ class RVInstVLX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
 class RVInstVSU<bits<3> nf, bit mew, RISCVLSUMOP sumop,
                 bits<3> width, dag outs, dag ins, string opcodestr,
                 string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> rs1;
   bits<5> vs3;
   bit vm;
@@ -291,7 +293,7 @@ class RVInstVSU<bits<3> nf, bit mew, RISCVLSUMOP sumop,
 
 class RVInstVSS<bits<3> nf, bit mew, bits<3> width,
                 dag outs, dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> rs2;
   bits<5> rs1;
   bits<5> vs3;
@@ -312,7 +314,7 @@ class RVInstVSS<bits<3> nf, bit mew, bits<3> width,
 
 class RVInstVSX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
                 dag outs, dag ins, string opcodestr, string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> vs2;
   bits<5> rs1;
   bits<5> vs3;

@@ -273,7 +273,7 @@ class RVBUnary<bits<7> funct7, bits<5> funct5, bits<3> funct3,
                RISCVOpcode opcode, string opcodestr>
     : RVInstR<funct7, funct3, opcode, (outs GPR:$rd), (ins GPR:$rs1),
               opcodestr, "$rd, $rs1"> {
-  let rs2 = funct5;
+  let rs2 = {0b000, funct5};
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
@@ -301,7 +301,7 @@ class RVBShfl_ri<bits<7> imm11_5, bits<3> funct3, RISCVOpcode opcode,
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
 class RVBTernaryR<bits<2> funct2, bits<3> funct3, RISCVOpcode opcode,
                   string opcodestr, string argstr>
-    : RVInstR4<funct2, funct3, opcode, (outs GPR:$rd),
+    : RVInstR4<funct2, funct3, 0, opcode, (outs GPR:$rd),
                (ins GPR:$rs1, GPR:$rs2, GPR:$rs3), opcodestr, argstr>;
 
 //===----------------------------------------------------------------------===//

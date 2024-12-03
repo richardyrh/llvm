@@ -51,24 +51,24 @@ RISCVAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
       // RISCVFixupKinds.h.
       //
       // name                      offset bits  flags
-      {"fixup_riscv_hi20", 12, 20, 0},
-      {"fixup_riscv_lo12_i", 20, 12, 0},
-      {"fixup_riscv_lo12_s", 0, 32, 0},
-      {"fixup_riscv_pcrel_hi20", 12, 20,
+      {"fixup_riscv_hi20", 0, 64, 0},
+      {"fixup_riscv_lo12_i", 0, 64, 0},
+      {"fixup_riscv_lo12_s", 0, 64, 0},
+      {"fixup_riscv_pcrel_hi20", 0, 64,
        MCFixupKindInfo::FKF_IsPCRel | MCFixupKindInfo::FKF_IsTarget},
-      {"fixup_riscv_pcrel_lo12_i", 20, 12,
+      {"fixup_riscv_pcrel_lo12_i", 0, 64,
        MCFixupKindInfo::FKF_IsPCRel | MCFixupKindInfo::FKF_IsTarget},
-      {"fixup_riscv_pcrel_lo12_s", 0, 32,
+      {"fixup_riscv_pcrel_lo12_s", 0, 64,
        MCFixupKindInfo::FKF_IsPCRel | MCFixupKindInfo::FKF_IsTarget},
-      {"fixup_riscv_got_hi20", 12, 20, MCFixupKindInfo::FKF_IsPCRel},
-      {"fixup_riscv_tprel_hi20", 12, 20, 0},
-      {"fixup_riscv_tprel_lo12_i", 20, 12, 0},
-      {"fixup_riscv_tprel_lo12_s", 0, 32, 0},
+      {"fixup_riscv_got_hi20", 0, 64, MCFixupKindInfo::FKF_IsPCRel},
+      {"fixup_riscv_tprel_hi20", 0, 64, 0},
+      {"fixup_riscv_tprel_lo12_i", 0, 64, 0},
+      {"fixup_riscv_tprel_lo12_s", 0, 64, 0},
       {"fixup_riscv_tprel_add", 0, 0, 0},
-      {"fixup_riscv_tls_got_hi20", 12, 20, MCFixupKindInfo::FKF_IsPCRel},
-      {"fixup_riscv_tls_gd_hi20", 12, 20, MCFixupKindInfo::FKF_IsPCRel},
-      {"fixup_riscv_jal", 12, 20, MCFixupKindInfo::FKF_IsPCRel},
-      {"fixup_riscv_branch", 0, 32, MCFixupKindInfo::FKF_IsPCRel},
+      {"fixup_riscv_tls_got_hi20", 0, 64, MCFixupKindInfo::FKF_IsPCRel},
+      {"fixup_riscv_tls_gd_hi20", 0, 64, MCFixupKindInfo::FKF_IsPCRel},
+      {"fixup_riscv_jal", 0, 64, MCFixupKindInfo::FKF_IsPCRel},
+      {"fixup_riscv_branch", 0, 64, MCFixupKindInfo::FKF_IsPCRel},
       {"fixup_riscv_rvc_jump", 2, 11, MCFixupKindInfo::FKF_IsPCRel},
       {"fixup_riscv_rvc_branch", 0, 16, MCFixupKindInfo::FKF_IsPCRel},
       {"fixup_riscv_call", 0, 64, MCFixupKindInfo::FKF_IsPCRel},
@@ -346,6 +346,8 @@ bool RISCVAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
     Count -= 1;
   }
 
+  assert(((Count % 8) == 0) && "Trying to write nop starting at non-aligned address");
+
   bool HasStdExtC = STI->getFeatureBits()[RISCV::FeatureStdExtC];
   bool HasStdExtZca = STI->getFeatureBits()[RISCV::FeatureExtZca];
   // The canonical nop on RVC is c.nop.
@@ -355,8 +357,9 @@ bool RISCVAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
   }
 
   // The canonical nop on RISC-V is addi x0, x0, 0.
-  for (; Count >= 4; Count -= 4)
-    OS.write("\x13\0\0\0", 4);
+  for (; Count >= 8; Count -= 8)
+    OS.write("\x13\0\0\0\0\0\0\0", 8); // fortunately, we only need to fill upper bits with 0
+    // OS.write("\x13\0\0\0", 4);
 
   return true;
 }
@@ -392,59 +395,77 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
   case RISCV::fixup_riscv_lo12_i:
   case RISCV::fixup_riscv_pcrel_lo12_i:
   case RISCV::fixup_riscv_tprel_lo12_i:
-    return Value & 0xfff;
+    return ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 28); // I2
+    // return Value & 0xfff;
   case RISCV::fixup_riscv_lo12_s:
   case RISCV::fixup_riscv_pcrel_lo12_s:
   case RISCV::fixup_riscv_tprel_lo12_s:
-    return (((Value >> 5) & 0x7f) << 25) | ((Value & 0x1f) << 7);
+    if (!isInt<24>(Value))
+      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
+    return (Value & 0xffffff) << 36; // S-type, I3
+    // return (((Value >> 5) & 0x7f) << 25) | ((Value & 0x1f) << 7);
   case RISCV::fixup_riscv_hi20:
   case RISCV::fixup_riscv_pcrel_hi20:
   case RISCV::fixup_riscv_tprel_hi20:
     // Add 1 if bit 11 is 1, to compensate for low 12 bits being negative.
-    return ((Value + 0x800) >> 12) & 0xfffff;
+    return ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 28);
+    // return ((Value + 0x800) >> 12) & 0xfffff;
   case RISCV::fixup_riscv_jal: {
-    if (!isInt<21>(Value))
+    if (!isInt<32>(Value))
       Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
-    if (Value & 0x1)
-      Ctx.reportError(Fixup.getLoc(), "fixup value must be 2-byte aligned");
+    if (Value & 0x7)
+      Ctx.reportError(Fixup.getLoc(), "fixup value must be 8-byte aligned");
     // Need to produce imm[19|10:1|11|19:12] from the 21-bit Value.
-    unsigned Sbit = (Value >> 20) & 0x1;
-    unsigned Hi8 = (Value >> 12) & 0xff;
-    unsigned Mid1 = (Value >> 11) & 0x1;
-    unsigned Lo10 = (Value >> 1) & 0x3ff;
-    // Inst{31} = Sbit;
-    // Inst{30-21} = Lo10;
-    // Inst{20} = Mid1;
-    // Inst{19-12} = Hi8;
-    Value = (Sbit << 19) | (Lo10 << 9) | (Mid1 << 8) | Hi8;
-    return Value;
+    // unsigned Sbit = (Value >> 20) & 0x1;
+    // unsigned Hi8 = (Value >> 12) & 0xff;
+    // unsigned Mid1 = (Value >> 11) & 0x1;
+    // unsigned Lo10 = (Value >> 1) & 0x3ff;
+    // // Inst{31} = Sbit;
+    // // Inst{30-21} = Lo10;
+    // // Inst{20} = Mid1;
+    // // Inst{19-12} = Hi8;
+    // Value = (Sbit << 19) | (Lo10 << 9) | (Mid1 << 8) | Hi8;
+    // return Value;
+    return ((Value & 0xfffff8) << 36) | (((Value >> 24) & 0xff) << 28);
   }
   case RISCV::fixup_riscv_branch: {
-    if (!isInt<13>(Value))
+    if (!isInt<24>(Value))
       Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
-    if (Value & 0x1)
-      Ctx.reportError(Fixup.getLoc(), "fixup value must be 2-byte aligned");
+    if (Value & 0x7)
+      Ctx.reportError(Fixup.getLoc(), "fixup value must be 8-byte aligned");
     // Need to extract imm[12], imm[10:5], imm[4:1], imm[11] from the 13-bit
     // Value.
-    unsigned Sbit = (Value >> 12) & 0x1;
-    unsigned Hi1 = (Value >> 11) & 0x1;
-    unsigned Mid6 = (Value >> 5) & 0x3f;
-    unsigned Lo4 = (Value >> 1) & 0xf;
-    // Inst{31} = Sbit;
-    // Inst{30-25} = Mid6;
-    // Inst{11-8} = Lo4;
-    // Inst{7} = Hi1;
-    Value = (Sbit << 31) | (Mid6 << 25) | (Lo4 << 8) | (Hi1 << 7);
-    return Value;
+    // unsigned Sbit = (Value >> 12) & 0x1;
+    // unsigned Hi1 = (Value >> 11) & 0x1;
+    // unsigned Mid6 = (Value >> 5) & 0x3f;
+    // unsigned Lo4 = (Value >> 1) & 0xf;
+    // // Inst{31} = Sbit;
+    // // Inst{30-25} = Mid6;
+    // // Inst{11-8} = Lo4;
+    // // Inst{7} = Hi1;
+    // Value = (Sbit << 31) | (Mid6 << 25) | (Lo4 << 8) | (Hi1 << 7);
+    // return Value;
+    return (Value & 0xfffff8) << 36;
   }
   case RISCV::fixup_riscv_call:
   case RISCV::fixup_riscv_call_plt: {
     // Jalr will add UpperImm with the sign-extended 12-bit LowerImm,
     // we need to add 0x800ULL before extract upper bits to reflect the
     // effect of the sign extension.
-    uint64_t UpperImm = (Value + 0x800ULL) & 0xfffff000ULL;
-    uint64_t LowerImm = Value & 0xfffULL;
-    return UpperImm | ((LowerImm << 20) << 32);
+    // uint64_t UpperImm = (Value + 0x800ULL) & 0xfffff000ULL;
+    // uint64_t LowerImm = Value & 0xfffULL;
+    // return UpperImm | ((LowerImm << 20) << 32);
+    //
+    if (Value & 0x7)
+      Ctx.reportError(Fixup.getLoc(), "fixup value must be 8-byte aligned");
+    // jalr will be able to encode everything now. so upper immediate no longer needed
+    // however, since this function only returns up to 64 bits,
+    // the upper 32 bits of the second instruction cannot be encoded,
+    // thus all of the immediate will be added by auipc instead for the time being
+    // and the jalr will add immediate 0.
+    // TODO: eliminate auipc and have jalr contain the immediate offset
+    uint64_t jalr_offset = ((Value & 0xfffff8) << 36) | (((Value >> 24) & 0xff) << 28);
+    return jalr_offset;
   }
   case RISCV::fixup_riscv_rvc_jump: {
     // Need to produce offset[11|4|9:8|10|6|7|3:1|5] from the 11-bit Value.
@@ -577,9 +598,12 @@ bool RISCVAsmBackend::shouldInsertExtraNopBytesForCodeAlign(
   if (!STI->getFeatureBits()[RISCV::FeatureRelax])
     return false;
 
+  assert(!STI->getFeatureBits()[RISCV::FeatureStdExtC] && 
+          "This compiler cannot compile the C extension");
+
   bool UseCompressedNop = STI->getFeatureBits()[RISCV::FeatureStdExtC] ||
                           STI->getFeatureBits()[RISCV::FeatureExtZca];
-  unsigned MinNopLen = UseCompressedNop ? 2 : 4;
+  unsigned MinNopLen = UseCompressedNop ? 2 : 8;
 
   if (AF.getAlignment() <= MinNopLen) {
     return false;
@@ -599,6 +623,8 @@ bool RISCVAsmBackend::shouldInsertFixupForCodeAlign(MCAssembler &Asm,
                                                     MCAlignFragment &AF) {
   // Insert the fixup only when linker relaxation enabled.
   const MCSubtargetInfo *STI = AF.getSubtargetInfo();
+  // assert((!STI->getFeatureBits()[RISCV::FeatureRelax]) &&
+  //         "I don't know what this is so it's better if this is off");
   if (!STI->getFeatureBits()[RISCV::FeatureRelax])
     return false;
 

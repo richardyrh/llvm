@@ -500,7 +500,7 @@ def FeatureRelax
     : SubtargetFeature<"relax", "EnableLinkerRelax", "true",
                        "Enable Linker relaxation.">;
 
-foreach i = {1-31} in
+foreach i = {1-127} in
   def FeatureReserveX#i :
       SubtargetFeature<"reserve-x"#i, "UserReservedRegister[RISCV::X"#i#"]",
                        "true", "Reserve X"#i>;

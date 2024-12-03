@@ -65,7 +65,7 @@ static DecodeStatus DecodeGPRRegisterClass(MCInst &Inst, uint64_t RegNo,
       Decoder->getSubtargetInfo().getFeatureBits();
   bool IsRV32E = FeatureBits[RISCV::FeatureRV32E];
 
-  if (RegNo >= 32 || (IsRV32E && RegNo >= 16))
+  if (RegNo >= 128 || (IsRV32E && RegNo >= 16))
     return MCDisassembler::Fail;
 
   MCRegister Reg = RISCV::X0 + RegNo;
@@ -76,7 +76,7 @@ static DecodeStatus DecodeGPRRegisterClass(MCInst &Inst, uint64_t RegNo,
 static DecodeStatus DecodeFPR16RegisterClass(MCInst &Inst, uint64_t RegNo,
                                              uint64_t Address,
                                              const MCDisassembler *Decoder) {
-  if (RegNo >= 32)
+  if (RegNo >= 64) // TODO: increase when we increase fp regs
     return MCDisassembler::Fail;
 
   MCRegister Reg = RISCV::F0_H + RegNo;
@@ -87,7 +87,7 @@ static DecodeStatus DecodeFPR16RegisterClass(MCInst &Inst, uint64_t RegNo,
 static DecodeStatus DecodeFPR32RegisterClass(MCInst &Inst, uint64_t RegNo,
                                              uint64_t Address,
                                              const MCDisassembler *Decoder) {
-  if (RegNo >= 32)
+  if (RegNo >= 64)
     return MCDisassembler::Fail;
 
   MCRegister Reg = RISCV::F0_F + RegNo;
@@ -98,7 +98,7 @@ static DecodeStatus DecodeFPR32RegisterClass(MCInst &Inst, uint64_t RegNo,
 static DecodeStatus DecodeFPR32CRegisterClass(MCInst &Inst, uint64_t RegNo,
                                               uint64_t Address,
                                               const MCDisassembler *Decoder) {
-  if (RegNo >= 8) {
+  if (RegNo >= 0) { // shouldn't be able to support compressed regs
     return MCDisassembler::Fail;
   }
   MCRegister Reg = RISCV::F8_F + RegNo;
@@ -109,7 +109,7 @@ static DecodeStatus DecodeFPR32CRegisterClass(MCInst &Inst, uint64_t RegNo,
 static DecodeStatus DecodeFPR64RegisterClass(MCInst &Inst, uint64_t RegNo,
                                              uint64_t Address,
                                              const MCDisassembler *Decoder) {
-  if (RegNo >= 32)
+  if (RegNo >= 64)
     return MCDisassembler::Fail;
 
   MCRegister Reg = RISCV::F0_D + RegNo;
@@ -120,7 +120,7 @@ static DecodeStatus DecodeFPR64RegisterClass(MCInst &Inst, uint64_t RegNo,
 static DecodeStatus DecodeFPR64CRegisterClass(MCInst &Inst, uint64_t RegNo,
                                               uint64_t Address,
                                               const MCDisassembler *Decoder) {
-  if (RegNo >= 8) {
+  if (RegNo >= 0) {
     return MCDisassembler::Fail;
   }
   MCRegister Reg = RISCV::F8_D + RegNo;
@@ -151,7 +151,7 @@ DecodeGPRNoX0X2RegisterClass(MCInst &Inst, uint64_t RegNo, uint64_t Address,
 static DecodeStatus DecodeGPRCRegisterClass(MCInst &Inst, uint64_t RegNo,
                                             uint64_t Address,
                                             const MCDisassembler *Decoder) {
-  if (RegNo >= 8)
+  if (RegNo >= 0)
     return MCDisassembler::Fail;
 
   MCRegister Reg = RISCV::X8 + RegNo;
@@ -162,7 +162,7 @@ static DecodeStatus DecodeGPRCRegisterClass(MCInst &Inst, uint64_t RegNo,
 static DecodeStatus DecodeGPRPF64RegisterClass(MCInst &Inst, uint64_t RegNo,
                                                uint64_t Address,
                                                const MCDisassembler *Decoder) {
-  if (RegNo >= 32 || RegNo & 1)
+  if (RegNo >= 64 || RegNo & 1)
     return MCDisassembler::Fail;
 
   MCRegister Reg = RISCV::X0 + RegNo;
@@ -270,10 +270,12 @@ static void addImplySP(MCInst &Inst, int64_t Address,
       Inst.getOpcode() == RISCV::C_FSDSP ||
       Inst.getOpcode() == RISCV::C_ADDI4SPN) {
     DecodeGPRRegisterClass(Inst, 2, Address, Decoder);
+    assert(false);
   }
   if (Inst.getOpcode() == RISCV::C_ADDI16SP) {
     DecodeGPRRegisterClass(Inst, 2, Address, Decoder);
     DecodeGPRRegisterClass(Inst, 2, Address, Decoder);
+    assert(false);
   }
 }
 
@@ -317,15 +319,24 @@ static DecodeStatus decodeSImmNonZeroOperand(MCInst &Inst, uint64_t Imm,
 }
 
 template <unsigned N>
-static DecodeStatus decodeSImmOperandAndLsl1(MCInst &Inst, uint64_t Imm,
+static DecodeStatus decodeSImmOperandAndLsl3(MCInst &Inst, uint64_t Imm,
                                              int64_t Address,
                                              const MCDisassembler *Decoder) {
   assert(isUInt<N>(Imm) && "Invalid immediate");
   // Sign-extend the number in the bottom N bits of Imm after accounting for
   // the fact that the N bit immediate is stored in N-1 bits (the LSB is
   // always zero)
-  Inst.addOperand(MCOperand::createImm(SignExtend64<N>(Imm << 1)));
+  Inst.addOperand(MCOperand::createImm(SignExtend64<N>(Imm << 3)));
   return MCDisassembler::Success;
+}
+
+template <unsigned N>
+static DecodeStatus decodeSImmOperandAndLsl1(MCInst &Inst, uint64_t Imm,
+                                             int64_t Address,
+                                             const MCDisassembler *Decoder) {
+  assert(false && "compressed insts not suported");
+  Inst.addOperand(MCOperand::createImm(SignExtend64<N>(Imm << 1)));
+  return MCDisassembler::Fail;
 }
 
 static DecodeStatus decodeCLUIImmOperand(MCInst &Inst, uint64_t Imm,
@@ -434,59 +445,59 @@ DecodeStatus RISCVDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
                                                raw_ostream &CS) const {
   // TODO: This will need modification when supporting instruction set
   // extensions with instructions > 32-bits (up to 176 bits wide).
-  uint32_t Insn;
+  uint64_t Insn;
   DecodeStatus Result;
 
   // It's a 32 bit instruction if bit 0 and 1 are 1.
   if ((Bytes[0] & 0x3) == 0x3) {
-    if (Bytes.size() < 4) {
+    if (Bytes.size() < 8) {
       Size = 0;
       return MCDisassembler::Fail;
     }
-    Insn = support::endian::read32le(Bytes.data());
+    Insn = support::endian::read64le(Bytes.data());
     if (STI.getFeatureBits()[RISCV::FeatureStdExtZdinx] &&
         !STI.getFeatureBits()[RISCV::Feature64Bit]) {
       LLVM_DEBUG(dbgs() << "Trying RV32Zdinx table (Double in Integer and"
                            "rv32)\n");
-      Result = decodeInstruction(DecoderTableRV32Zdinx32, MI, Insn, Address,
+      Result = decodeInstruction(DecoderTableRV32Zdinx64, MI, Insn, Address,
                                  this, STI);
       if (Result != MCDisassembler::Fail) {
-        Size = 4;
+        Size = 8;
         return Result;
       }
     }
 
     if (STI.getFeatureBits()[RISCV::FeatureStdExtZfinx]) {
       LLVM_DEBUG(dbgs() << "Trying RVZfinx table (Float in Integer):\n");
-      Result = decodeInstruction(DecoderTableRVZfinx32, MI, Insn, Address, this,
+      Result = decodeInstruction(DecoderTableRVZfinx64, MI, Insn, Address, this,
                                  STI);
       if (Result != MCDisassembler::Fail) {
-        Size = 4;
+        Size = 8;
         return Result;
       }
     }
     if (STI.getFeatureBits()[RISCV::FeatureVendorXVentanaCondOps]) {
       LLVM_DEBUG(dbgs() << "Trying Ventana custom opcode table:\n");
-      Result = decodeInstruction(DecoderTableVentana32, MI, Insn, Address, this,
+      Result = decodeInstruction(DecoderTableVentana64, MI, Insn, Address, this,
                                  STI);
       if (Result != MCDisassembler::Fail) {
-        Size = 4;
+        Size = 8;
         return Result;
       }
     }
     if (STI.getFeatureBits()[RISCV::FeatureVendorXTHeadVdot]) {
       LLVM_DEBUG(dbgs() << "Trying T-Head custom opcode table:\n");
       Result =
-          decodeInstruction(DecoderTableTHeadV32, MI, Insn, Address, this, STI);
+          decodeInstruction(DecoderTableTHeadV64, MI, Insn, Address, this, STI);
       if (Result != MCDisassembler::Fail) {
-        Size = 4;
+        Size = 8;
         return Result;
       }
     }
 
     LLVM_DEBUG(dbgs() << "Trying RISCV32 table :\n");
-    Result = decodeInstruction(DecoderTable32, MI, Insn, Address, this, STI);
-    Size = 4;
+    Result = decodeInstruction(DecoderTable64, MI, Insn, Address, this, STI);
+    Size = 8;
   } else {
     if (Bytes.size() < 2) {
       Size = 0;
@@ -501,7 +512,7 @@ DecodeStatus RISCVDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
       Result = decodeInstruction(DecoderTableRISCV32Only_16, MI, Insn, Address,
                                  this, STI);
       if (Result != MCDisassembler::Fail) {
-        Size = 2;
+        Size = 8;
         return Result;
       }
     }

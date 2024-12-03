@@ -156,24 +156,24 @@ def frmarg : Operand<XLenVT> {
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in
 class FPLoad_r<bits<3> funct3, string opcodestr, RegisterClass rty,
                SchedWrite sw>
-    : RVInstI<funct3, OPC_LOAD_FP, (outs rty:$rd),
-              (ins GPRMem:$rs1, simm12:$imm12),
-              opcodestr, "$rd, ${imm12}(${rs1})">,
+    : RVInstI2<funct3, 0, OPC_LOAD_FP, (outs rty:$rd),
+               (ins GPRMem:$rs1, simm32:$imm32),
+               opcodestr, "$rd, ${imm32}(${rs1})">,
       Sched<[sw, ReadFMemBase]>;
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in
 class FPStore_r<bits<3> funct3, string opcodestr, RegisterClass rty,
                 SchedWrite sw>
-    : RVInstS<funct3, OPC_STORE_FP, (outs),
-              (ins rty:$rs2, GPRMem:$rs1, simm12:$imm12),
-              opcodestr, "$rs2, ${imm12}(${rs1})">,
+    : RVInstS<funct3, 0, OPC_STORE_FP, (outs),
+              (ins rty:$rs2, GPRMem:$rs1, simm24:$imm24),
+              opcodestr, "$rs2, ${imm24}(${rs1})">,
       Sched<[sw, ReadFStoreData, ReadFMemBase]>;
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1,
     UseNamedOperandTable = 1, hasPostISelHook = 1, isCommutable = 1 in
 class FPFMA_rrr_frm<RISCVOpcode opcode, bits<2> funct2, string opcodestr,
                     DAGOperand rty>
-    : RVInstR4Frm<funct2, opcode, (outs rty:$rd),
+    : RVInstR4Frm<funct2, 0, opcode, (outs rty:$rd),
                   (ins rty:$rs1, rty:$rs2, rty:$rs3, frmarg:$frm),
                   opcodestr, "$rd, $rs1, $rs2, $rs3, $frm">;
 
@@ -199,8 +199,8 @@ multiclass FPFMADynFrmAlias_m<FPFMA_rrr_frm Inst, string OpcodeStr,
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1 in
 class FPALU_rr<bits<7> funct7, bits<3> funct3, string opcodestr,
                DAGOperand rty, bit Commutable>
-    : RVInstR<funct7, funct3, OPC_OP_FP, (outs rty:$rd),
-              (ins rty:$rs1, rty:$rs2), opcodestr, "$rd, $rs1, $rs2"> {
+    : RVInstR3<funct7, funct3, 0, OPC_OP_FP, (outs rty:$rd),
+               (ins rty:$rs1, rty:$rs2), opcodestr, "$rd, $rs1, $rs2"> {
   let isCommutable = Commutable;
 }
 multiclass FPALU_rr_m<bits<7> funct7, bits<3> funct3, string opcodestr,
@@ -214,9 +214,9 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1,
     UseNamedOperandTable = 1, hasPostISelHook = 1 in
 class FPALU_rr_frm<bits<7> funct7, string opcodestr, DAGOperand rty,
                    bit Commutable>
-    : RVInstRFrm<funct7, OPC_OP_FP, (outs rty:$rd),
-                 (ins rty:$rs1, rty:$rs2, frmarg:$frm), opcodestr,
-                  "$rd, $rs1, $rs2, $frm"> {
+    : RVInstR3Frm<funct7, 0, OPC_OP_FP, (outs rty:$rd),
+                  (ins rty:$rs1, rty:$rs2, frmarg:$frm), opcodestr,
+                   "$rd, $rs1, $rs2, $frm"> {
   let isCommutable = Commutable;
 }
 multiclass FPALU_rr_frm_m<bits<7> funct7, string opcodestr,
@@ -241,9 +241,9 @@ multiclass FPALUDynFrmAlias_m<FPALU_rr_frm Inst, string OpcodeStr,
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1 in
 class FPUnaryOp_r<bits<7> funct7, bits<5> rs2val, bits<3> funct3,
                   DAGOperand rdty, DAGOperand rs1ty, string opcodestr>
-    : RVInstR<funct7, funct3, OPC_OP_FP, (outs rdty:$rd), (ins rs1ty:$rs1),
-              opcodestr, "$rd, $rs1"> {
-  let rs2 = rs2val;
+    : RVInstR3<funct7, funct3, 0, OPC_OP_FP, (outs rdty:$rd), (ins rs1ty:$rs1),
+               opcodestr, "$rd, $rs1"> {
+  let rs2 = {0b000, rs2val};
 }
 multiclass FPUnaryOp_r_m<bits<7> funct7, bits<5> rs2val, bits<3> funct3,
                          list<ExtInfo_rr> Exts, string opcodestr> {
@@ -257,10 +257,10 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1,
     UseNamedOperandTable = 1, hasPostISelHook = 1 in
 class FPUnaryOp_r_frm<bits<7> funct7, bits<5> rs2val, DAGOperand rdty,
                       DAGOperand rs1ty, string opcodestr>
-    : RVInstRFrm<funct7, OPC_OP_FP, (outs rdty:$rd),
-                 (ins rs1ty:$rs1, frmarg:$frm), opcodestr,
-                  "$rd, $rs1, $frm"> {
-  let rs2 = rs2val;
+    : RVInstR3Frm<funct7, 0, OPC_OP_FP, (outs rdty:$rd),
+                  (ins rs1ty:$rs1, frmarg:$frm), opcodestr,
+                   "$rd, $rs1, $frm"> {
+  let rs2 = {0b000, rs2val};
 }
 multiclass FPUnaryOp_r_frm_m<bits<7> funct7, bits<5> rs2val,
                              list<ExtInfo_rr> Exts, string opcodestr> {
@@ -286,8 +286,8 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1,
     IsSignExtendingOpW = 1 in
 class FPCmp_rr<bits<7> funct7, bits<3> funct3, string opcodestr,
                DAGOperand rty, bit Commutable>
-    : RVInstR<funct7, funct3, OPC_OP_FP, (outs GPR:$rd),
-              (ins rty:$rs1, rty:$rs2), opcodestr, "$rd, $rs1, $rs2"> {
+    : RVInstR3<funct7, funct3, 0, OPC_OP_FP, (outs GPR:$rd),
+               (ins rty:$rs1, rty:$rs2), opcodestr, "$rd, $rs1, $rs2"> {
   let isCommutable = Commutable;
 }
 multiclass FPCmp_rr_m<bits<7> funct7, bits<3> funct3, string opcodestr,
@@ -495,11 +495,11 @@ def fpimmneg0 : PatLeaf<(fpimm), [{ return N->isExactlyValue(-0.0); }]>;
 class PatSetCC<RegisterClass Ty, SDPatternOperator OpNode, CondCode Cond, RVInst Inst>
     : Pat<(OpNode Ty:$rs1, Ty:$rs2, Cond), (Inst $rs1, $rs2)>;
 
-class PatFprFpr<SDPatternOperator OpNode, RVInstR Inst,
+class PatFprFpr<SDPatternOperator OpNode, RVInstR3 Inst,
                 RegisterClass RegTy>
     : Pat<(OpNode RegTy:$rs1, RegTy:$rs2), (Inst $rs1, $rs2)>;
 
-class PatFprFprDynFrm<SDPatternOperator OpNode, RVInstRFrm Inst,
+class PatFprFprDynFrm<SDPatternOperator OpNode, RVInstR3Frm Inst,
                       RegisterClass RegTy>
     : Pat<(OpNode RegTy:$rs1, RegTy:$rs2), (Inst $rs1, $rs2, 0b111)>;
 

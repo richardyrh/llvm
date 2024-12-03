@@ -43,7 +43,7 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
 class RVKUnary<bits<12> imm12_in, bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_OP_IMM, (outs GPR:$rd), (ins GPR:$rs1),
               opcodestr, "$rd, $rs1">{
-  let imm12 = imm12_in;
+  let imm32 = {0b00000000000000000000, imm12_in};
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
@@ -60,6 +60,7 @@ class RVKUnary_rnum<bits<7> funct7, bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_OP_IMM, (outs GPR:$rd), (ins GPR:$rs1, rnum:$rnum),
               opcodestr, "$rd, $rs1, $rnum">{
     bits<4> rnum;
+    let imm32 = 0;
     let Inst{31-25} = funct7;
     let Inst{24} = 1;
     let Inst{23-20} = rnum;

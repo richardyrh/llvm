@@ -38,16 +38,17 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in
 class CBO_r<bits<12> optype, string opcodestr>
     : RVInstI<0b010, OPC_MISC_MEM, (outs), (ins GPRMemZeroOffset:$rs1),
               opcodestr, "$rs1"> {
-  let imm12 = optype;
-  let rd = 0b00000;
+  let imm32 = {0b00000000000000000000, optype};
+  let rd = 0b00000000;
 }
 
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in
 class Prefetch_ri<bits<5> optype, string opcodestr>
-    : RVInstS<0b110, OPC_OP_IMM, (outs), (ins GPR:$rs1, simm12_lsb00000:$imm12),
+    : RVInstS<0b110, 0, OPC_OP_IMM, (outs), (ins GPR:$rs1, simm12_lsb00000:$imm12),
               opcodestr, "${imm12}(${rs1})"> {
+  let imm24 = 0;
   let Inst{11-7} = 0b00000;
-  let rs2 = optype;
+  let rs2 = {0b000, optype};
 }
 
 //===----------------------------------------------------------------------===//

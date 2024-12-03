@@ -37,14 +37,21 @@ static cl::opt<bool>
 
 static_assert(RISCV::X1 == RISCV::X0 + 1, "Register list not consecutive");
 static_assert(RISCV::X31 == RISCV::X0 + 31, "Register list not consecutive");
+static_assert(RISCV::X127 == RISCV::X0 + 127, "Register list not consecutive");
 static_assert(RISCV::F1_H == RISCV::F0_H + 1, "Register list not consecutive");
 static_assert(RISCV::F31_H == RISCV::F0_H + 31,
+              "Register list not consecutive");
+static_assert(RISCV::F63_H == RISCV::F0_H + 63,
               "Register list not consecutive");
 static_assert(RISCV::F1_F == RISCV::F0_F + 1, "Register list not consecutive");
 static_assert(RISCV::F31_F == RISCV::F0_F + 31,
               "Register list not consecutive");
+static_assert(RISCV::F63_F == RISCV::F0_F + 63,
+              "Register list not consecutive");
 static_assert(RISCV::F1_D == RISCV::F0_D + 1, "Register list not consecutive");
 static_assert(RISCV::F31_D == RISCV::F0_D + 31,
+              "Register list not consecutive");
+static_assert(RISCV::F63_D == RISCV::F0_D + 63,
               "Register list not consecutive");
 static_assert(RISCV::V1 == RISCV::V0 + 1, "Register list not consecutive");
 static_assert(RISCV::V31 == RISCV::V0 + 31, "Register list not consecutive");
@@ -127,6 +134,8 @@ const uint32_t *RISCVRegisterInfo::getNoPreservedMask() const {
   return CSR_NoRegs_RegMask;
 }
 
+
+// TODO: do we need to reserve spill slots for the new s registers?
 // Frame indexes representing locations of CSRs which are given a fixed location
 // by save/restore libcalls.
 static const std::pair<unsigned, int> FixedCSRFIMap[] = {
@@ -517,7 +526,10 @@ bool RISCVRegisterInfo::needsFrameBaseReg(MachineInstr *MI,
   // For RISC-V, The machine instructions that include a FrameIndex operand
   // are load/store, ADDI instructions.
   unsigned MIFrm = RISCVII::getFormat(MI->getDesc().TSFlags);
-  if (MIFrm != RISCVII::InstFormatI && MIFrm != RISCVII::InstFormatS)
+  if (MIFrm != RISCVII::InstFormatI2 &&
+      MIFrm != RISCVII::InstFormatI3 &&
+      MIFrm != RISCVII::InstFormatII3 &&
+      MIFrm != RISCVII::InstFormatS)
     return false;
   // We only generate virtual base registers for loads and stores, so
   // return false for everything else.
@@ -565,7 +577,7 @@ bool RISCVRegisterInfo::isFrameOffsetLegal(const MachineInstr *MI,
   }
 
   Offset += getFrameIndexInstrOffset(MI, FIOperandNum);
-  return isInt<12>(Offset);
+  return isInt<32>(Offset);
 }
 
 // Insert defining instruction(s) for a pointer to FrameIdx before
@@ -611,7 +623,9 @@ void RISCVRegisterInfo::resolveFrameIndex(MachineInstr &MI, Register BaseReg,
 // if there is one.
 int64_t RISCVRegisterInfo::getFrameIndexInstrOffset(const MachineInstr *MI,
                                                     int Idx) const {
-  assert((RISCVII::getFormat(MI->getDesc().TSFlags) == RISCVII::InstFormatI ||
+  assert((RISCVII::getFormat(MI->getDesc().TSFlags) == RISCVII::InstFormatI2 ||
+          RISCVII::getFormat(MI->getDesc().TSFlags) == RISCVII::InstFormatI3 ||
+          RISCVII::getFormat(MI->getDesc().TSFlags) == RISCVII::InstFormatII3 ||
           RISCVII::getFormat(MI->getDesc().TSFlags) == RISCVII::InstFormatS) &&
          "The MI must be I or S format.");
   assert(MI->getOperand(Idx).isFI() && "The Idx'th operand of MI is not a "
@@ -718,6 +732,8 @@ bool RISCVRegisterInfo::getRegAllocationHints(
   // needs GPRC register class operands \p NeedGPRC will be set to true.
   auto isCompressible = [](const MachineInstr &MI, bool &NeedGPRC) {
     NeedGPRC = false;
+    return false;
+
     switch (MI.getOpcode()) {
     default:
       return false;
