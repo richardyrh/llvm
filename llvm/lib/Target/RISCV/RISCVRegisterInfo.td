@@ -284,6 +284,13 @@ def SR07 : GPRRegisterClass<(add (sequence "X%u", 8, 9),
 
 def GPRX1X5 :  GPRRegisterClass<(add X1, X5)>;
 
+// GPR classes for each bank (stripe) of registers (mod 4)
+def GPRB0 : GPRRegisterClass<(add X0, X4, X8, X12, X16, X20, X24, X28)>;
+def GPRB1 : GPRRegisterClass<(add X1, X5, X9, X13, X17, X21, X25, X29)>;
+def GPRB2 : GPRRegisterClass<(add X2, X6, X10, X14, X18, X22, X26, X30)>;
+def GPRB3 : GPRRegisterClass<(add X3, X7, X11, X15, X19, X23, X27, X31)>;
+
+
 //===----------------------------------------------------------------------===//
 // Even-Odd GPR Pairs
 //===----------------------------------------------------------------------===//
@@ -438,6 +445,12 @@ def FPR64C : RISCVRegisterClass<[f64], 64, (add
   (sequence "F%u_D", 15, 10),
   (sequence "F%u_D", 8, 9)
 )>;
+
+// FPR classes for each bank (stripe) of registers (mod 4)
+def FPRB0 : RISCVRegisterClass<[f32], 32, (add F0_F, F4_F, F8_F, F12_F, F16_F, F20_F, F24_F, F28_F)>;
+def FPRB1 : RISCVRegisterClass<[f32], 32, (add F1_F, F5_F, F9_F, F13_F, F17_F, F21_F, F25_F, F29_F)>;
+def FPRB2 : RISCVRegisterClass<[f32], 32, (add F2_F, F6_F, F10_F, F14_F, F18_F, F22_F, F26_F, F30_F)>;
+def FPRB3 : RISCVRegisterClass<[f32], 32, (add F3_F, F7_F, F11_F, F15_F, F19_F, F23_F, F27_F, F31_F)>;
 
 //===----------------------------------------------------------------------===//
 // GPR Classes for "H/F/D in X"

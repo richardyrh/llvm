@@ -67,6 +67,16 @@ RegisterBankInfo::RegisterBankInfo(const RegisterBank **RegBanks,
 #endif // NDEBUG
 }
 
+RegisterBankInfo::RegisterBankInfo(const RegisterBank **RegBanks,
+                                   unsigned NumRegBanks,
+                                   const RegisterBank **RegStripes,
+                                   unsigned NumRegStripes, const unsigned *Sizes,
+                                   unsigned HwMode)
+    : RegisterBankInfo(RegBanks, NumRegBanks, Sizes, HwMode) {
+  this->RegStripes = RegStripes;
+  this->NumRegStripes = NumRegStripes;
+}
+
 bool RegisterBankInfo::verify(const TargetRegisterInfo &TRI) const {
 #ifndef NDEBUG
   for (unsigned Idx = 0, End = getNumRegBanks(); Idx != End; ++Idx) {
@@ -96,6 +106,17 @@ RegisterBankInfo::getRegBank(Register Reg, const MachineRegisterInfo &MRI,
   if (auto *RC =
           dyn_cast_if_present<const TargetRegisterClass *>(RegClassOrBank))
     return &getRegBankFromRegClass(*RC, MRI.getType(Reg));
+  return nullptr;
+}
+
+const RegisterBank *RegisterBankInfo::getRegStripe(Register Reg, const MachineRegisterInfo &MRI,
+                                 const TargetRegisterInfo &TRI) const {
+  if (!Reg.isVirtual()) {
+      const TargetRegisterClass *RC = getMinimalPhysRegClass(Reg, TRI);
+      return RC ? &getRegStripeFromRegClass(*RC, LLT()) : nullptr;
+  }
+
+  assert(false && "Only Physical Registers are supported for Stripe");
   return nullptr;
 }
 

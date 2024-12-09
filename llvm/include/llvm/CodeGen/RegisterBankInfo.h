@@ -388,8 +388,14 @@ protected:
   /// Hold the set of supported register banks.
   const RegisterBank **RegBanks;
 
+  /// Hold the set of supported register stripes.
+  const RegisterBank **RegStripes;
+
   /// Total number of register banks.
   unsigned NumRegBanks;
+
+  /// Total number of register stripes.
+  unsigned NumRegStripes;
 
   /// Hold the sizes of the register banks for all HwModes.
   const unsigned *Sizes;
@@ -426,6 +432,10 @@ protected:
   RegisterBankInfo(const RegisterBank **RegBanks, unsigned NumRegBanks,
                    const unsigned *Sizes, unsigned HwMode);
 
+  RegisterBankInfo(const RegisterBank **RegBanks, unsigned NumRegBanks,
+                   const RegisterBank **RegStripes, unsigned NumRegStripes,
+                   const unsigned *Sizes, unsigned HwMode);
+
   /// This constructor is meaningless.
   /// It just provides a default constructor that can be used at link time
   /// when GlobalISel is not built.
@@ -440,6 +450,11 @@ protected:
   const RegisterBank &getRegBank(unsigned ID) {
     assert(ID < getNumRegBanks() && "Accessing an unknown register bank");
     return *RegBanks[ID];
+  }
+
+  const RegisterBank &getRegStripe(unsigned ID) {
+    assert(ID < getNumRegStripes() && "Accessing an unknown register stripe");
+    return *RegStripes[ID];
   }
 
   /// Get the MinimalPhysRegClass for Reg.
@@ -586,6 +601,10 @@ public:
     return const_cast<RegisterBankInfo *>(this)->getRegBank(ID);
   }
 
+  const RegisterBank &getRegStripe(unsigned ID) const {
+    return const_cast<RegisterBankInfo *>(this)->getRegStripe(ID);
+  }
+
   /// Get the maximum size in bits that fits in the given register bank.
   unsigned getMaximumSize(unsigned RegBankID) const {
     return Sizes[RegBankID + HwMode * NumRegBanks];
@@ -599,8 +618,13 @@ public:
   const RegisterBank *getRegBank(Register Reg, const MachineRegisterInfo &MRI,
                                  const TargetRegisterInfo &TRI) const;
 
+  const RegisterBank *getRegStripe(Register Reg, const MachineRegisterInfo &MRI,
+                                 const TargetRegisterInfo &TRI) const;
+
   /// Get the total number of register banks.
   unsigned getNumRegBanks() const { return NumRegBanks; }
+
+  unsigned getNumRegStripes() const { return NumRegStripes; }
 
   /// Returns true if the register bank is considered divergent.
   virtual bool isDivergentRegBank(const RegisterBank *RB) const {
@@ -621,6 +645,11 @@ public:
   /// \todo This should be TableGen'ed.
   virtual const RegisterBank &
   getRegBankFromRegClass(const TargetRegisterClass &RC, LLT Ty) const {
+    llvm_unreachable("The target must override this method");
+  }
+
+  virtual const RegisterBank &
+  getRegStripeFromRegClass(const TargetRegisterClass &RC, LLT Ty) const {
     llvm_unreachable("The target must override this method");
   }
 

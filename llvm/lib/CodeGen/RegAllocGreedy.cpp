@@ -406,7 +406,7 @@ MCRegister RAGreedy::tryAssign(const LiveInterval &VirtReg,
         if (!assignedBankConflictFree)
           PhysReg = *I;
         
-        if (Kind == LiveRegMatrix::IK_RegBank)
+        if (Kind == LiveRegMatrix::IK_Free)
           assignedBankConflictFree = true;
       }
     }

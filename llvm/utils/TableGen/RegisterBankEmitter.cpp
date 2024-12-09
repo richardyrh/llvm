@@ -111,12 +111,23 @@ private:
   const CodeGenTarget Target;
   const RecordKeeper &Records;
 
+
+
   void emitHeader(raw_ostream &OS, const StringRef TargetName,
-                  ArrayRef<RegisterBank> Banks);
+                  ArrayRef<RegisterBank> Banks,
+                  ArrayRef<RegisterBank> Stripes);
   void emitBaseClassDefinition(raw_ostream &OS, const StringRef TargetName,
-                               ArrayRef<RegisterBank> Banks);
+                               ArrayRef<RegisterBank> Banks,
+                               ArrayRef<RegisterBank> Stripes);
   void emitBaseClassImplementation(raw_ostream &OS, const StringRef TargetName,
-                                   ArrayRef<RegisterBank> Banks);
+                                   ArrayRef<RegisterBank> Banks,
+                                   ArrayRef<RegisterBank> Stripes);
+  void emitCoverageArrays(raw_ostream &OS, const StringRef BankOrStripe, ArrayRef<RegisterBank> Banks, 
+      const CodeGenRegBank &RegisterClassHierarchy);
+  void emitRegBankDefs(raw_ostream &OS, const StringRef TargetName, const StringRef BankOrStripe, 
+      ArrayRef<RegisterBank> Banks, const CodeGenRegBank &RegisterClassHierarchy);
+  void emitRegBankGetters(raw_ostream &OS, const StringRef TargetName, const StringRef BankOrStripe,
+      ArrayRef<RegisterBank> Banks);
 
 public:
   RegisterBankEmitter(const RecordKeeper &R) : Target(R), Records(R) {}
@@ -130,7 +141,8 @@ public:
 /// variables.
 void RegisterBankEmitter::emitHeader(raw_ostream &OS,
                                      const StringRef TargetName,
-                                     ArrayRef<RegisterBank> Banks) {
+                                     ArrayRef<RegisterBank> Banks,
+                                     ArrayRef<RegisterBank> Stripes) {
   // <Target>RegisterBankInfo.h
   OS << "namespace llvm {\n"
      << "namespace " << TargetName << " {\n"
@@ -141,6 +153,14 @@ void RegisterBankEmitter::emitHeader(raw_ostream &OS,
   for (const auto &Bank : Banks)
     OS << "  " << Bank.getEnumeratorName() << " = " << ID++ << ",\n";
   OS << "  NumRegisterBanks,\n"
+     << "};\n";
+
+  OS << "enum : unsigned {\n";
+  OS << "  InvalidRegStripeID = ~0u,\n";
+  ID = 0;
+  for (const auto &Stripe : Stripes)
+    OS << "  " << Stripe.getEnumeratorName() << " = " << ID++ << ",\n";
+  OS << "  NumRegisterStripes,\n"
      << "};\n"
      << "} // end namespace " << TargetName << "\n"
      << "} // end namespace llvm\n";
@@ -148,12 +168,16 @@ void RegisterBankEmitter::emitHeader(raw_ostream &OS,
 
 /// Emit declarations of the <Target>GenRegisterBankInfo class.
 void RegisterBankEmitter::emitBaseClassDefinition(
-    raw_ostream &OS, const StringRef TargetName, ArrayRef<RegisterBank> Banks) {
+    raw_ostream &OS, const StringRef TargetName, ArrayRef<RegisterBank> Banks,
+    ArrayRef<RegisterBank> Stripes) {
   OS << "private:\n"
      << "  static const RegisterBank *RegBanks[];\n"
+     << "  static const RegisterBank *RegStripes[];\n"
      << "  static const unsigned Sizes[];\n\n"
      << "public:\n"
      << "  const RegisterBank &getRegBankFromRegClass(const "
+        "TargetRegisterClass &RC, LLT Ty) const override;\n"
+     << "  const RegisterBank &getRegStripeFromRegClass(const "
         "TargetRegisterClass &RC, LLT Ty) const override;\n"
      << "protected:\n"
      << "  " << TargetName << "GenRegisterBankInfo(unsigned HwMode = 0);\n"
@@ -217,13 +241,14 @@ static void visitRegisterBankClasses(
   }
 }
 
-void RegisterBankEmitter::emitBaseClassImplementation(
-    raw_ostream &OS, StringRef TargetName, ArrayRef<RegisterBank> Banks) {
-  const CodeGenRegBank &RegisterClassHierarchy = Target.getRegBank();
-  const CodeGenHwModes &CGH = Target.getHwModes();
+void RegisterBankEmitter::emitCoverageArrays(raw_ostream &OS, const StringRef BankOrStripe, ArrayRef<RegisterBank> Banks, 
+      const CodeGenRegBank &RegisterClassHierarchy) {
 
-  OS << "namespace llvm {\n"
-     << "namespace " << TargetName << " {\n";
+  if (BankOrStripe == "Stripe") {
+    OS << "const uint32_t UnassignedRegStripeCoverageData[] = {\n";
+    OS << "    0\n";
+    OS << "};\n";
+  }
   for (const auto &Bank : Banks) {
     std::vector<std::vector<const CodeGenRegisterClass *>> RCsGroupedByWord(
         (RegisterClassHierarchy.getRegClasses().size() + 31) / 32);
@@ -246,7 +271,16 @@ void RegisterBankEmitter::emitBaseClassImplementation(
     OS << "};\n";
   }
   OS << "\n";
+}
 
+void RegisterBankEmitter::emitRegBankDefs(raw_ostream &OS, const StringRef TargetName, const StringRef BankOrStripe, 
+      ArrayRef<RegisterBank> Banks, const CodeGenRegBank &RegisterClassHierarchy) {
+  if (BankOrStripe == "Stripe") {
+    OS << "constexpr RegisterBank UnassignedRegStripe(/* ID */ "
+       << TargetName << "::NumRegisterStripes" << ", /* Name */ \"URS\""
+       << ", /* CoveredRegClasses */ UnassignedRegStripeCoverageData"
+       << ", /* NumRegClasses */ 0" << ");\n";
+  }
   for (const auto &Bank : Banks) {
     std::string QualifiedBankID =
         (TargetName + "::" + Bank.getEnumeratorName()).str();
@@ -256,43 +290,11 @@ void RegisterBankEmitter::emitBaseClassImplementation(
        << ", /* NumRegClasses */ "
        << RegisterClassHierarchy.getRegClasses().size() << ");\n";
   }
-  OS << "} // end namespace " << TargetName << "\n"
-     << "\n";
+}
 
-  OS << "const RegisterBank *" << TargetName
-     << "GenRegisterBankInfo::RegBanks[] = {\n";
-  for (const auto &Bank : Banks)
-    OS << "    &" << TargetName << "::" << Bank.getInstanceVarName() << ",\n";
-  OS << "};\n\n";
-
-  unsigned NumModeIds = CGH.getNumModeIds();
-  OS << "const unsigned " << TargetName << "GenRegisterBankInfo::Sizes[] = {\n";
-  for (unsigned M = 0; M < NumModeIds; ++M) {
-    OS << "    // Mode = " << M << " (";
-    if (M == DefaultMode)
-      OS << "Default";
-    else
-      OS << CGH.getMode(M).Name;
-    OS << ")\n";
-    for (const auto &Bank : Banks) {
-      const CodeGenRegisterClass &RC = *Bank.getRCWithLargestRegSize(M);
-      unsigned Size = RC.RSI.get(M).SpillSize;
-      OS << "    " << Size << ",\n";
-    }
-  }
-  OS << "};\n\n";
-
-  OS << TargetName << "GenRegisterBankInfo::" << TargetName
-     << "GenRegisterBankInfo(unsigned HwMode)\n"
-     << "    : RegisterBankInfo(RegBanks, " << TargetName
-     << "::NumRegisterBanks, Sizes, HwMode) {\n"
-     << "  // Assert that RegBank indices match their ID's\n"
-     << "#ifndef NDEBUG\n"
-     << "  for (auto RB : enumerate(RegBanks))\n"
-     << "    assert(RB.index() == RB.value()->getID() && \"Index != ID\");\n"
-     << "#endif // NDEBUG\n"
-     << "}\n";
-
+void RegisterBankEmitter::emitRegBankGetters(raw_ostream &OS, const StringRef TargetName, const StringRef BankOrStripe,
+      ArrayRef<RegisterBank> Banks) {
+  
   uint32_t NumRegBanks = Banks.size();
   uint32_t BitSize = NextPowerOf2(Log2_32(NumRegBanks));
   uint32_t ElemsPerWord = 32 / BitSize;
@@ -325,7 +327,7 @@ void RegisterBankEmitter::emitBaseClassImplementation(
   }
   OS << "const RegisterBank &\n"
      << TargetName
-     << "GenRegisterBankInfo::getRegBankFromRegClass"
+     << "GenRegisterBankInfo::getReg" << BankOrStripe << "FromRegClass"
         "(const TargetRegisterClass &RC, LLT) const {\n";
   if (HasAmbigousOrMissingEntry) {
     OS << "  constexpr uint32_t InvalidRegBankID = uint32_t("
@@ -333,7 +335,7 @@ void RegisterBankEmitter::emitBaseClassImplementation(
   }
   unsigned TableSize =
       Entries.size() / ElemsPerWord + ((Entries.size() % ElemsPerWord) > 0);
-  OS << "  static const uint32_t RegClass2RegBank[" << TableSize << "] = {\n";
+  OS << "  static const uint32_t RegClass2Reg"<<BankOrStripe<<"[" << TableSize << "] = {\n";
   uint32_t Shift = 32 - BitSize;
   bool First = true;
   std::string TrailingComment;
@@ -364,19 +366,88 @@ void RegisterBankEmitter::emitBaseClassImplementation(
         "  if (LLVM_LIKELY(RegClassID < "
      << Entries.size()
      << ")) {\n"
-        "    unsigned RegBankID = (RegClass2RegBank[RegClassID / "
+        "    unsigned RegBankID = (RegClass2Reg"<<BankOrStripe<<"[RegClassID / "
      << ElemsPerWord << "] >> ((RegClassID % " << ElemsPerWord << ") * "
      << BitSize << ")) & " << BitMask << ";\n";
   if (HasAmbigousOrMissingEntry) {
     OS << "    if (RegBankID != InvalidRegBankID)\n"
-          "      return getRegBank(RegBankID);\n";
+          "      return getReg"<<BankOrStripe<<"(RegBankID);\n";
   } else
-    OS << "    return getRegBank(RegBankID);\n";
-  OS << "  }\n"
-        "  llvm_unreachable(llvm::Twine(\"Target needs to handle register "
+    OS << "    return getReg"<<BankOrStripe<<"(RegBankID);\n";
+  OS << "  }\n";
+  if (BankOrStripe == "Stripe") {
+    OS << "  return llvm::"<<TargetName<<"::UnassignedRegStripe;\n"
+       << "}\n";
+  } else {
+  OS << "  llvm_unreachable(llvm::Twine(\"Target needs to handle register "
         "class ID "
         "0x\").concat(llvm::Twine::utohexstr(RegClassID)).str().c_str());\n"
         "}\n";
+  }
+}
+
+void RegisterBankEmitter::emitBaseClassImplementation(
+    raw_ostream &OS, StringRef TargetName, ArrayRef<RegisterBank> Banks,
+    ArrayRef<RegisterBank> Stripes) {
+  
+  const CodeGenRegBank &RegisterClassHierarchy = Target.getRegBank();
+  const CodeGenHwModes &CGH = Target.getHwModes();
+
+  OS << "namespace llvm {\n"
+     << "namespace " << TargetName << " {\n";
+
+  emitCoverageArrays(OS, "Bank", Banks, RegisterClassHierarchy);
+  emitCoverageArrays(OS, "Stripe", Stripes, RegisterClassHierarchy);
+
+  emitRegBankDefs(OS, TargetName, "Bank", Banks, RegisterClassHierarchy);
+  emitRegBankDefs(OS, TargetName, "Stripe", Stripes, RegisterClassHierarchy); 
+
+  OS << "} // end namespace " << TargetName << "\n"
+     << "\n";
+
+  OS << "const RegisterBank *" << TargetName
+     << "GenRegisterBankInfo::RegBanks[] = {\n";
+  for (const auto &Bank : Banks)
+    OS << "    &" << TargetName << "::" << Bank.getInstanceVarName() << ",\n";
+  OS << "};\n\n";
+
+  OS << "const RegisterBank *" << TargetName
+     << "GenRegisterBankInfo::RegStripes[] = {\n";
+  for (const auto &Stripe : Stripes)
+    OS << "    &" << TargetName << "::" << Stripe.getInstanceVarName() << ",\n";
+  OS << "};\n\n";
+
+  unsigned NumModeIds = CGH.getNumModeIds();
+  OS << "const unsigned " << TargetName << "GenRegisterBankInfo::Sizes[] = {\n";
+  for (unsigned M = 0; M < NumModeIds; ++M) {
+    OS << "    // Mode = " << M << " (";
+    if (M == DefaultMode)
+      OS << "Default";
+    else
+      OS << CGH.getMode(M).Name;
+    OS << ")\n";
+    for (const auto &Bank : Banks) {
+      const CodeGenRegisterClass &RC = *Bank.getRCWithLargestRegSize(M);
+      unsigned Size = RC.RSI.get(M).SpillSize;
+      OS << "    " << Size << ",\n";
+    }
+  }
+  OS << "};\n\n";
+
+  OS << TargetName << "GenRegisterBankInfo::" << TargetName
+     << "GenRegisterBankInfo(unsigned HwMode)\n"
+     << "    : RegisterBankInfo(RegBanks, " << TargetName
+     << "::NumRegisterBanks, RegStripes, " << TargetName
+     << "::NumRegisterStripes, Sizes, HwMode) {\n"
+     << "  // Assert that RegBank indices match their ID's\n"
+     << "#ifndef NDEBUG\n"
+     << "  for (auto RB : enumerate(RegBanks))\n"
+     << "    assert(RB.index() == RB.value()->getID() && \"Index != ID\");\n"
+     << "#endif // NDEBUG\n"
+     << "}\n";
+
+  emitRegBankGetters(OS, TargetName, "Bank", Banks);
+  emitRegBankGetters(OS, TargetName, "Stripe", Stripes);
 
   OS << "} // end namespace llvm\n";
 }
@@ -408,6 +479,25 @@ void RegisterBankEmitter::run(raw_ostream &OS) {
     Banks.push_back(Bank);
   }
 
+
+  std::vector<RegisterBank> Stripes;
+  for (const auto &V : Records.getAllDerivedDefinitions("RegisterStripe")) {
+    SmallPtrSet<const CodeGenRegisterClass *, 8> VisitedRCs;
+    RegisterBank Stripe(*V, CGH.getNumModeIds());
+
+    for (const CodeGenRegisterClass *RC :
+         Stripe.getExplicitlySpecifiedRegisterClasses(RegisterClassHierarchy)) {
+      visitRegisterBankClasses(
+          RegisterClassHierarchy, RC, "explicit",
+          [&Stripe](const CodeGenRegisterClass *RC, StringRef Kind) {
+            Stripe.addRegisterClass(RC);
+          },
+          VisitedRCs);
+    }
+
+    Stripes.push_back(Stripe);
+  }
+
   // Warn about ambiguous MIR caused by register bank/class name clashes.
   Timer.startTimer("Warn ambiguous");
   for (const auto &Class : RegisterClassHierarchy.getRegClasses()) {
@@ -426,15 +516,15 @@ void RegisterBankEmitter::run(raw_ostream &OS) {
   emitSourceFileHeader("Register Bank Source Fragments", OS);
   OS << "#ifdef GET_REGBANK_DECLARATIONS\n"
      << "#undef GET_REGBANK_DECLARATIONS\n";
-  emitHeader(OS, TargetName, Banks);
+  emitHeader(OS, TargetName, Banks, Stripes);
   OS << "#endif // GET_REGBANK_DECLARATIONS\n\n"
      << "#ifdef GET_TARGET_REGBANK_CLASS\n"
      << "#undef GET_TARGET_REGBANK_CLASS\n";
-  emitBaseClassDefinition(OS, TargetName, Banks);
+  emitBaseClassDefinition(OS, TargetName, Banks, Stripes);
   OS << "#endif // GET_TARGET_REGBANK_CLASS\n\n"
      << "#ifdef GET_TARGET_REGBANK_IMPL\n"
      << "#undef GET_TARGET_REGBANK_IMPL\n";
-  emitBaseClassImplementation(OS, TargetName, Banks);
+  emitBaseClassImplementation(OS, TargetName, Banks, Stripes);
   OS << "#endif // GET_TARGET_REGBANK_IMPL\n";
 }
 
