@@ -51,13 +51,13 @@ public:
 const uint64_t dtpOffset = 0x800;
 
 enum Op {
-  ADDI = 0x13,
-  AUIPC = 0x17,
-  JALR = 0x67,
-  LD = 0x3003,
-  LW = 0x2003,
-  SRLI = 0x5013,
-  SUB = 0x40000033,
+  ADDI = 0x13ULL,
+  AUIPC = 0x17ULL,
+  JALR = 0x67ULL,
+  LD = 0x60003ULL,
+  LW = 0x40003ULL,
+  SRLI = 0xa0013ULL,
+  SUB = 0x02000000'00000033ULL,
 };
 
 enum Reg {
@@ -70,29 +70,35 @@ enum Reg {
 };
 
 static uint32_t hi20(uint32_t val) { return (val + 0x800) >> 12; }
-static uint32_t lo12(uint32_t val) { return val & 4095; }
+// static uint32_t lo12(uint32_t val) { return val & 4095; }
 
-static uint32_t itype(uint32_t op, uint32_t rd, uint32_t rs1, uint32_t imm) {
-  return op | (rd << 7) | (rs1 << 15) | (imm << 20);
+
+// i2
+static uint64_t itype(uint64_t op, uint64_t rd, uint64_t rs1, uint64_t imm) {
+  return op | (rd << 9) | (rs1 << 20) | ((imm & 0xffffff) << 36) | (((imm >> 24) & 0xff) << 28);
 }
-static uint32_t rtype(uint32_t op, uint32_t rd, uint32_t rs1, uint32_t rs2) {
-  return op | (rd << 7) | (rs1 << 15) | (rs2 << 20);
+// r3
+static uint64_t rtype(uint64_t op, uint64_t rd, uint64_t rs1, uint64_t rs2) {
+  return op | (rd << 9) | (rs1 << 20) | (rs2 << 28);
 }
-static uint32_t utype(uint32_t op, uint32_t rd, uint32_t imm) {
-  return op | (rd << 7) | (imm << 12);
+// equivalent to i2 with rs1=0
+static uint64_t utype(uint64_t op, uint64_t rd, uint64_t imm) {
+  return op | (rd << 9) | ((imm & 0xffffff) << 36) | (((imm >> 24) & 0xff) << 28);
 }
 
 // Extract bits v[begin:end], where range is inclusive, and begin must be < 63.
-static uint32_t extractBits(uint64_t v, uint32_t begin, uint32_t end) {
-  return (v & ((1ULL << (begin + 1)) - 1)) >> end;
+static uint64_t extractBits(uint64_t v, uint64_t begin, uint64_t end) {
+  return (v & ((1ULL << (begin + 1)) - 1ULL)) >> end;
 }
 
-static uint32_t setLO12_I(uint32_t insn, uint32_t imm) {
-  return (insn & 0xfffff) | (imm << 20);
+static uint64_t setImm_I(uint64_t insn, uint64_t imm) {
+  // return (insn & 0xfffff) | (imm << 20);
+  return (insn & 0xf0000000'0fffffffULL) | ((imm & 0xffffff) << 36) | (((imm >> 24) & 0xff) << 28);
 }
-static uint32_t setLO12_S(uint32_t insn, uint32_t imm) {
-  return (insn & 0x1fff07f) | (extractBits(imm, 11, 5) << 25) |
-         (extractBits(imm, 4, 0) << 7);
+static uint64_t setImm_S(uint64_t insn, uint64_t imm) {
+  // return (insn & 0x1fff07f) | (extractBits(imm, 11, 5) << 25) |
+  //        (extractBits(imm, 4, 0) << 7);
+  return (insn & 0xf000000f'fffe01ffULL) | ((imm & 0xffffff) << 36) | (((imm >> 24) & 0xff) << 9);
 }
 
 RISCV::RISCV() {
@@ -119,9 +125,9 @@ RISCV::RISCV() {
   // .got.plt[0] = _dl_runtime_resolve, .got.plt[1] = link_map
   gotPltHeaderEntriesNum = 2;
 
-  pltHeaderSize = 32;
-  pltEntrySize = 16;
-  ipltEntrySize = 16;
+  pltHeaderSize = 64; // duplicated since insts are double sized
+  pltEntrySize = 32;
+  ipltEntrySize = 32;
 }
 
 static uint32_t getEFlags(InputFile *f) {
@@ -206,6 +212,9 @@ void RISCV::writeIgotPlt(uint8_t *buf, const Symbol &s) const {
   }
 }
 
+// TODO (richard): i dont think i know what i'm doing here,
+// this might straight up not work. i dont think dynamic linking
+// is a good idea for this compiler
 void RISCV::writePltHeader(uint8_t *buf) const {
   // 1: auipc t2, %pcrel_hi(.got.plt)
   // sub t1, t1, t3
@@ -216,15 +225,15 @@ void RISCV::writePltHeader(uint8_t *buf) const {
   // l[wd] t0, Wordsize(t0); t0 = link_map
   // jr t3
   uint32_t offset = in.gotPlt->getVA() - in.plt->getVA();
-  uint32_t load = config->is64 ? LD : LW;
-  write32le(buf + 0, utype(AUIPC, X_T2, hi20(offset)));
-  write32le(buf + 4, rtype(SUB, X_T1, X_T1, X_T3));
-  write32le(buf + 8, itype(load, X_T3, X_T2, lo12(offset)));
-  write32le(buf + 12, itype(ADDI, X_T1, X_T1, -target->pltHeaderSize - 12));
-  write32le(buf + 16, itype(ADDI, X_T0, X_T2, lo12(offset)));
-  write32le(buf + 20, itype(SRLI, X_T1, X_T1, config->is64 ? 1 : 2));
-  write32le(buf + 24, itype(load, X_T0, X_T0, config->wordsize));
-  write32le(buf + 28, itype(JALR, 0, X_T3, 0));
+  uint64_t load = config->is64 ? LD : LW;
+  write64le(buf + 0, utype(AUIPC, X_T2, 0 /*hi20(offset)*/));
+  write64le(buf + 8, rtype(SUB, X_T1, X_T1, X_T3));
+  write64le(buf + 16, itype(load, X_T3, X_T2, offset /*lo12(offset)*/));
+  write64le(buf + 24, itype(ADDI, X_T1, X_T1, -target->pltHeaderSize - 24));
+  write64le(buf + 32, itype(ADDI, X_T0, X_T2, offset /*lo12(offset)*/));
+  write64le(buf + 40, itype(SRLI, X_T1, X_T1, config->is64 ? 1 : 2));
+  write64le(buf + 48, itype(load, X_T0, X_T0, config->wordsize));
+  write64le(buf + 56, itype(JALR, 0, X_T3, 0));
 }
 
 void RISCV::writePlt(uint8_t *buf, const Symbol &sym,
@@ -234,10 +243,10 @@ void RISCV::writePlt(uint8_t *buf, const Symbol &sym,
   // jalr t1, t3
   // nop
   uint32_t offset = sym.getGotPltVA() - pltEntryAddr;
-  write32le(buf + 0, utype(AUIPC, X_T3, hi20(offset)));
-  write32le(buf + 4, itype(config->is64 ? LD : LW, X_T3, X_T3, lo12(offset)));
-  write32le(buf + 8, itype(JALR, X_T1, X_T3, 0));
-  write32le(buf + 12, itype(ADDI, 0, 0, 0));
+  write64le(buf + 0, utype(AUIPC, X_T3, 0 /*hi20(offset)*/));
+  write64le(buf + 8, itype(config->is64 ? LD : LW, X_T3, X_T3, offset /*lo12(offset)*/));
+  write64le(buf + 16, itype(JALR, X_T1, X_T3, 0));
+  write64le(buf + 24, itype(ADDI, 0, 0, 0));
 }
 
 RelType RISCV::getDynRel(RelType type) const {
@@ -318,6 +327,7 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
     return;
 
   case R_RISCV_RVC_BRANCH: {
+    warn("rvc: shouldn't be reachable");
     checkInt(loc, val, 9, rel);
     checkAlignment(loc, val, 2, rel);
     uint16_t insn = read16le(loc) & 0xE383;
@@ -333,6 +343,7 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   }
 
   case R_RISCV_RVC_JUMP: {
+    warn("rvc: shouldn't be reachable");
     checkInt(loc, val, 12, rel);
     checkAlignment(loc, val, 2, rel);
     uint16_t insn = read16le(loc) & 0xE003;
@@ -351,6 +362,7 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   }
 
   case R_RISCV_RVC_LUI: {
+    warn("rvc: shouldn't be reachable");
     int64_t imm = SignExtend64(val + 0x800, bits) >> 12;
     checkInt(loc, imm, 6, rel);
     if (imm == 0) { // `c.lui rd, 0` is illegal, convert to `c.li rd, 0`
@@ -364,44 +376,54 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   }
 
   case R_RISCV_JAL: {
-    checkInt(loc, val, 21, rel);
-    checkAlignment(loc, val, 2, rel);
+    // checkInt(loc, val, 21, rel);
+    checkAlignment(loc, val, 2, rel); // TODO: eventually should be 8
 
-    uint32_t insn = read32le(loc) & 0xFFF;
-    uint32_t imm20 = extractBits(val, 20, 20) << 31;
-    uint32_t imm10_1 = extractBits(val, 10, 1) << 21;
-    uint32_t imm11 = extractBits(val, 11, 11) << 20;
-    uint32_t imm19_12 = extractBits(val, 19, 12) << 12;
-    insn |= imm20 | imm10_1 | imm11 | imm19_12;
+    // uint32_t insn = read32le(loc) & 0xFFF;
+    // uint32_t imm20 = extractBits(val, 20, 20) << 31;
+    // uint32_t imm10_1 = extractBits(val, 10, 1) << 21;
+    // uint32_t imm11 = extractBits(val, 11, 11) << 20;
+    // uint32_t imm19_12 = extractBits(val, 19, 12) << 12;
+    // insn |= imm20 | imm10_1 | imm11 | imm19_12;
+   
+    uint64_t insn = setImm_I(read64le(loc), val);
 
-    write32le(loc, insn);
+    write64le(loc, insn);
     return;
   }
 
   case R_RISCV_BRANCH: {
-    checkInt(loc, val, 13, rel);
-    checkAlignment(loc, val, 2, rel);
+    // checkInt(loc, val, 13, rel);
+    checkAlignment(loc, val, 2, rel); // TODO: eventually should be 8
 
-    uint32_t insn = read32le(loc) & 0x1FFF07F;
-    uint32_t imm12 = extractBits(val, 12, 12) << 31;
-    uint32_t imm10_5 = extractBits(val, 10, 5) << 25;
-    uint32_t imm4_1 = extractBits(val, 4, 1) << 8;
-    uint32_t imm11 = extractBits(val, 11, 11) << 7;
-    insn |= imm12 | imm10_5 | imm4_1 | imm11;
+    // uint32_t insn = read32le(loc) & 0x1FFF07F;
+    // uint32_t imm12 = extractBits(val, 12, 12) << 31;
+    // uint32_t imm10_5 = extractBits(val, 10, 5) << 25;
+    // uint32_t imm4_1 = extractBits(val, 4, 1) << 8;
+    // uint32_t imm11 = extractBits(val, 11, 11) << 7;
+    // insn |= imm12 | imm10_5 | imm4_1 | imm11;
+    
+    llvm::outs() << "i got " << val << "\n";
 
-    write32le(loc, insn);
+    uint64_t insn = setImm_S(read64le(loc), val);
+
+    write64le(loc, insn);
     return;
   }
 
   // auipc + jalr pair
   case R_RISCV_CALL:
   case R_RISCV_CALL_PLT: {
-    int64_t hi = SignExtend64(val + 0x800, bits) >> 12;
-    checkInt(loc, hi, 20, rel);
-    if (isInt<20>(hi)) {
-      relocateNoSym(loc, R_RISCV_PCREL_HI20, val);
-      relocateNoSym(loc + 4, R_RISCV_PCREL_LO12_I, val);
-    }
+    llvm::outs() << "relocating call_plt; this might not work, check if object file";
+    llvm::outs() << " indeed has a auipc + jalr pair at this site\n";
+    // int64_t hi = SignExtend64(val + 0x800, bits) >> 12;
+    // checkInt(loc, hi, 20, rel);
+    // if (isInt<20>(hi)) {
+    //   relocateNoSym(loc, R_RISCV_PCREL_HI20, val);
+    //   relocateNoSym(loc + 4, R_RISCV_PCREL_LO12_I, val);
+    // }
+    relocateNoSym(loc, R_RISCV_PCREL_HI20, 0);
+    relocateNoSym(loc + 8, R_RISCV_PCREL_LO12_I, val);
     return;
   }
 
@@ -411,27 +433,31 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   case R_RISCV_TLS_GOT_HI20:
   case R_RISCV_TPREL_HI20:
   case R_RISCV_HI20: {
-    uint64_t hi = val + 0x800;
-    checkInt(loc, SignExtend64(hi, bits) >> 12, 20, rel);
-    write32le(loc, (read32le(loc) & 0xFFF) | (hi & 0xFFFFF000));
+    warn("lui: should be unreachable");
+    // uint64_t hi = val + 0x800;
+    // checkInt(loc, SignExtend64(hi, bits) >> 12, 20, rel);
+    // write32le(loc, (read32le(loc) & 0xFFF) | (hi & 0xFFFFF000));
+    write64le(loc, setImm_I(read64le(loc), val));
     return;
   }
 
   case R_RISCV_PCREL_LO12_I:
   case R_RISCV_TPREL_LO12_I:
   case R_RISCV_LO12_I: {
-    uint64_t hi = (val + 0x800) >> 12;
-    uint64_t lo = val - (hi << 12);
-    write32le(loc, setLO12_I(read32le(loc), lo & 0xfff));
+    // uint64_t hi = (val + 0x800) >> 12;
+    // uint64_t lo = val - (hi << 12);
+    // write32le(loc, setLO12_I(read32le(loc), lo & 0xfff));
+    write64le(loc, setImm_I(read64le(loc), val));
     return;
   }
 
   case R_RISCV_PCREL_LO12_S:
   case R_RISCV_TPREL_LO12_S:
   case R_RISCV_LO12_S: {
-    uint64_t hi = (val + 0x800) >> 12;
-    uint64_t lo = val - (hi << 12);
-    write32le(loc, setLO12_S(read32le(loc), lo));
+    // uint64_t hi = (val + 0x800) >> 12;
+    // uint64_t lo = val - (hi << 12);
+    // write32le(loc, setLO12_S(read32le(loc), lo));
+    write64le(loc, setImm_S(read64le(loc), val));
     return;
   }
 
@@ -559,55 +585,64 @@ static void initSymbolAnchors() {
 // Relax R_RISCV_CALL/R_RISCV_CALL_PLT auipc+jalr to c.j, c.jal, or jal.
 static void relaxCall(const InputSection &sec, size_t i, uint64_t loc,
                       Relocation &r, uint32_t &remove) {
-  const bool rvc = config->eflags & EF_RISCV_RVC;
-  const Symbol &sym = *r.sym;
-  const uint64_t insnPair = read64le(sec.content().data() + r.offset);
-  const uint32_t rd = extractBits(insnPair, 32 + 11, 32 + 7);
-  const uint64_t dest =
-      (r.expr == R_PLT_PC ? sym.getPltVA() : sym.getVA()) + r.addend;
-  const int64_t displace = dest - loc;
+  llvm::outs() << "todo! relax call\n";
+  // const bool rvc = false; // config->eflags & EF_RISCV_RVC;
+  // const Symbol &sym = *r.sym;
+  // // const uint64_t insnPair = read64le(sec.content().data() + r.offset);
+  // // const uint32_t rd = extractBits(insnPair, 32 + 11, 32 + 7);
+  // const uint64_t jalrInst = read64le(sec.content().data() + r.offset + 8);
+  // const uint32_t rd = extractBits(jalrInst, 16, 9);
+  // const uint64_t dest =
+  //     (r.expr == R_PLT_PC ? sym.getPltVA() : sym.getVA()) + r.addend;
+  // const int64_t displace = dest - loc;
 
-  if (rvc && isInt<12>(displace) && rd == 0) {
-    sec.relaxAux->relocTypes[i] = R_RISCV_RVC_JUMP;
-    sec.relaxAux->writes.push_back(0xa001); // c.j
-    remove = 6;
-  } else if (rvc && isInt<12>(displace) && rd == X_RA &&
-             !config->is64) { // RV32C only
-    sec.relaxAux->relocTypes[i] = R_RISCV_RVC_JUMP;
-    sec.relaxAux->writes.push_back(0x2001); // c.jal
-    remove = 6;
-  } else if (isInt<21>(displace)) {
-    sec.relaxAux->relocTypes[i] = R_RISCV_JAL;
-    sec.relaxAux->writes.push_back(0x6f | rd << 7); // jal
-    remove = 4;
-  }
+  // // assert(!rvc);
+
+  // if (rvc && isInt<12>(displace) && rd == 0) {
+  //   sec.relaxAux->relocTypes[i] = R_RISCV_RVC_JUMP;
+  //   sec.relaxAux->writes.push_back(0xa001); // c.j
+  //   remove = 6;
+  // } else if (rvc && isInt<12>(displace) && rd == X_RA &&
+  //            !config->is64) { // RV32C only
+  //   sec.relaxAux->relocTypes[i] = R_RISCV_RVC_JUMP;
+  //   sec.relaxAux->writes.push_back(0x2001); // c.jal
+  //   remove = 6;
+  // } else if (isInt<32>(displace)) {
+  //   sec.relaxAux->relocTypes[i] = R_RISCV_JAL;
+  //   sec.relaxAux->writes.push_back(0x6fULL | rd << 9); // jal
+  //   remove = 8;
+  // }
 }
 
 // Relax local-exec TLS when hi20 is zero.
 static void relaxTlsLe(const InputSection &sec, size_t i, uint64_t loc,
                        Relocation &r, uint32_t &remove) {
+  llvm::outs() << "todo! tls\n";
   uint64_t val = r.sym->getVA(r.addend);
   if (hi20(val) != 0)
     return;
-  uint32_t insn = read32le(sec.content().data() + r.offset);
+  uint64_t insn = read64le(sec.content().data() + r.offset);
   switch (r.type) {
   case R_RISCV_TPREL_HI20:
   case R_RISCV_TPREL_ADD:
     // Remove lui rd, %tprel_hi(x) and add rd, rd, tp, %tprel_add(x).
     sec.relaxAux->relocTypes[i] = R_RISCV_RELAX;
-    remove = 4;
+    remove = 8;
     break;
+  // TODO (richard): deal with these
   case R_RISCV_TPREL_LO12_I:
+    llvm::outs() << "tprel_lo12_i relaxation skipped\n";
     // addi rd, rd, %tprel_lo(x) => addi rd, tp, st_value(x)
-    sec.relaxAux->relocTypes[i] = R_RISCV_32;
-    insn = (insn & ~(31 << 15)) | (X_TP << 15);
-    sec.relaxAux->writes.push_back(setLO12_I(insn, val));
+    // sec.relaxAux->relocTypes[i] = R_RISCV_32;
+    // insn = (insn & ~(31 << 15)) | (X_TP << 15);
+    // sec.relaxAux->writes.push_back(setLO12_I(insn, val));
     break;
   case R_RISCV_TPREL_LO12_S:
+    llvm::outs() << "tprel_lo12_s relaxation skipped\n";
     // sw rs, %tprel_lo(x)(rd) => sw rs, st_value(x)(rd)
-    sec.relaxAux->relocTypes[i] = R_RISCV_32;
-    insn = (insn & ~(31 << 15)) | (X_TP << 15);
-    sec.relaxAux->writes.push_back(setLO12_S(insn, val));
+    // sec.relaxAux->relocTypes[i] = R_RISCV_32;
+    // insn = (insn & ~(31 << 15)) | (X_TP << 15);
+    // sec.relaxAux->writes.push_back(setLO12_S(insn, val));
     break;
   }
 }
@@ -642,9 +677,10 @@ static bool relax(InputSection &sec) {
     switch (r.type) {
     case R_RISCV_ALIGN: {
       const uint64_t nextLoc = loc + r.addend;
-      const uint64_t align = PowerOf2Ceil(r.addend + 2);
+      const uint64_t align = PowerOf2Ceil(r.addend + 6 /*2*/);
       // All bytes beyond the alignment boundary should be removed.
       remove = nextLoc - ((loc + align - 1) & -align);
+      assert((remove == 0) && "R_RISCV_ALIGN shouldnt remove since insts are always same size?");
       assert(static_cast<int32_t>(remove) >= 0 &&
              "R_RISCV_ALIGN needs expanding the content");
       break;
@@ -764,9 +800,12 @@ void elf::riscvFinalizeRelax(int passes) {
         // sequence.
         int64_t skip = 0;
         if (r.type == R_RISCV_ALIGN) {
-          if (remove % 4 || r.addend % 4) {
+          llvm::outs() << "finalize relax r_riscv_align\n";
+          if (remove % 8 || r.addend % 8) {
             skip = r.addend - remove;
             int64_t j = 0;
+            for (; j + 8 <= skip; j += 8)
+              write64le(p + j, 0x00000000'00000013ULL); // nop
             for (; j + 4 <= skip; j += 4)
               write32le(p + j, 0x00000013); // nop
             if (j != skip) {
@@ -777,17 +816,21 @@ void elf::riscvFinalizeRelax(int passes) {
         } else if (RelType newType = aux.relocTypes[i]) {
           switch (newType) {
           case R_RISCV_RELAX:
+            llvm::outs() << "finalize relax r_riscv_relax\n";
             // Used by relaxTlsLe to indicate the relocation is ignored.
             break;
           case R_RISCV_RVC_JUMP:
+            llvm_unreachable("rvc");
             skip = 2;
             write16le(p, aux.writes[writesIdx++]);
             break;
           case R_RISCV_JAL:
-            skip = 4;
+            llvm::outs() << "finalize relax r_riscv_jal\n";
+            skip = 8;
             write32le(p, aux.writes[writesIdx++]);
             break;
           case R_RISCV_32:
+            llvm::outs() << "finalize relax r_riscv_32\n";
             // Used by relaxTlsLe to write a uint32_t then suppress the handling
             // in relocateAlloc.
             skip = 4;
