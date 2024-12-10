@@ -4408,16 +4408,20 @@ SDValue RISCVTargetLowering::getAddr(NodeTy *N, SelectionDAG &DAG,
     return Load;
   }
 
+  MVT XLenVT = Subtarget.getXLenVT();
+
   switch (getTargetMachine().getCodeModel()) {
   default:
     report_fatal_error("Unsupported code model for lowering");
   case CodeModel::Small: {
     // Generate a sequence for accessing addresses within the first 2 GiB of
     // address space. This generates the pattern (addi (lui %hi(sym)) %lo(sym)).
-    SDValue AddrHi = getTargetNode(N, DL, Ty, DAG, RISCVII::MO_HI);
+    // SDValue AddrHi = getTargetNode(N, DL, Ty, DAG, RISCVII::MO_HI);
     SDValue AddrLo = getTargetNode(N, DL, Ty, DAG, RISCVII::MO_LO);
-    SDValue MNHi = DAG.getNode(RISCVISD::HI, DL, Ty, AddrHi);
-    return DAG.getNode(RISCVISD::ADD_LO, DL, Ty, MNHi, AddrLo);
+    // SDValue MNHi = DAG.getNode(RISCVISD::HI, DL, Ty, AddrHi);
+    // return DAG.getNode(RISCVISD::ADD_LO, DL, Ty, MNHi, AddrLo);
+    SDValue ZeroReg = DAG.getRegister(RISCV::X0, XLenVT);
+    return DAG.getNode(RISCVISD::ADD_LO, DL, Ty, ZeroReg, AddrLo);
   }
   case CodeModel::Medium: {
     // Generate a sequence for accessing addresses within any 2GiB range within
@@ -4490,17 +4494,22 @@ SDValue RISCVTargetLowering::getStaticTLSAddr(GlobalAddressSDNode *N,
   // pointer, with the appropriate adjustment for the thread pointer offset.
   // This generates the pattern
   // (add (add_tprel (lui %tprel_hi(sym)) tp %tprel_add(sym)) %tprel_lo(sym))
-  SDValue AddrHi =
-      DAG.getTargetGlobalAddress(GV, DL, Ty, 0, RISCVII::MO_TPREL_HI);
+  // SDValue AddrHi =
+  //     DAG.getTargetGlobalAddress(GV, DL, Ty, 0, RISCVII::MO_TPREL_HI);
   SDValue AddrAdd =
       DAG.getTargetGlobalAddress(GV, DL, Ty, 0, RISCVII::MO_TPREL_ADD);
   SDValue AddrLo =
       DAG.getTargetGlobalAddress(GV, DL, Ty, 0, RISCVII::MO_TPREL_LO);
 
-  SDValue MNHi = DAG.getNode(RISCVISD::HI, DL, Ty, AddrHi);
+  // SDValue MNHi = DAG.getNode(RISCVISD::HI, DL, Ty, AddrHi);
+  // SDValue TPReg = DAG.getRegister(RISCV::X4, XLenVT);
+  // SDValue MNAdd =
+  //     DAG.getNode(RISCVISD::ADD_TPREL, DL, Ty, MNHi, TPReg, AddrAdd);
+  // return DAG.getNode(RISCVISD::ADD_LO, DL, Ty, MNAdd, AddrLo);
   SDValue TPReg = DAG.getRegister(RISCV::X4, XLenVT);
+  SDValue ZeroReg = DAG.getRegister(RISCV::X0, XLenVT);
   SDValue MNAdd =
-      DAG.getNode(RISCVISD::ADD_TPREL, DL, Ty, MNHi, TPReg, AddrAdd);
+      DAG.getNode(RISCVISD::ADD_TPREL, DL, Ty, ZeroReg, TPReg, AddrAdd);
   return DAG.getNode(RISCVISD::ADD_LO, DL, Ty, MNAdd, AddrLo);
 }
 
@@ -13560,6 +13569,102 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
                                .Case("{t4}", RISCV::X29)
                                .Case("{t5}", RISCV::X30)
                                .Case("{t6}", RISCV::X31)
+                               .Case("{a8}", RISCV::X32)
+                               .Case("{a9}", RISCV::X33)
+                               .Case("{a10}", RISCV::X34)
+                               .Case("{a11}", RISCV::X35)
+                               .Case("{a12}", RISCV::X36)
+                               .Case("{a13}", RISCV::X37)
+                               .Case("{a14}", RISCV::X38)
+                               .Case("{a15}", RISCV::X39)
+                               .Case("{a16}", RISCV::X40)
+                               .Case("{a17}", RISCV::X41)
+                               .Case("{a18}", RISCV::X42)
+                               .Case("{a19}", RISCV::X43)
+                               .Case("{a20}", RISCV::X44)
+                               .Case("{a21}", RISCV::X45)
+                               .Case("{a22}", RISCV::X46)
+                               .Case("{a23}", RISCV::X47)
+                               .Case("{s12}", RISCV::X48)
+                               .Case("{s13}", RISCV::X49)
+                               .Case("{s14}", RISCV::X50)
+                               .Case("{s15}", RISCV::X51)
+                               .Case("{s16}", RISCV::X52)
+                               .Case("{s17}", RISCV::X53)
+                               .Case("{s18}", RISCV::X54)
+                               .Case("{s19}", RISCV::X55)
+                               .Case("{s20}", RISCV::X56)
+                               .Case("{s21}", RISCV::X57)
+                               .Case("{s22}", RISCV::X58)
+                               .Case("{s23}", RISCV::X59)
+                               .Case("{s24}", RISCV::X60)
+                               .Case("{s25}", RISCV::X61)
+                               .Case("{s26}", RISCV::X62)
+                               .Case("{s27}", RISCV::X63)
+                               .Case("{s28}", RISCV::X64)
+                               .Case("{s29}", RISCV::X65)
+                               .Case("{s30}", RISCV::X66)
+                               .Case("{s31}", RISCV::X67)
+                               .Case("{s32}", RISCV::X68)
+                               .Case("{s33}", RISCV::X69)
+                               .Case("{s34}", RISCV::X70)
+                               .Case("{s35}", RISCV::X71)
+                               .Case("{s36}", RISCV::X72)
+                               .Case("{s37}", RISCV::X73)
+                               .Case("{s38}", RISCV::X74)
+                               .Case("{s39}", RISCV::X75)
+                               .Case("{s40}", RISCV::X76)
+                               .Case("{s41}", RISCV::X77)
+                               .Case("{s42}", RISCV::X78)
+                               .Case("{s43}", RISCV::X79)
+                               .Case("{s44}", RISCV::X80)
+                               .Case("{s45}", RISCV::X81)
+                               .Case("{s46}", RISCV::X82)
+                               .Case("{s47}", RISCV::X83)
+                               .Case("{s48}", RISCV::X84)
+                               .Case("{s49}", RISCV::X85)
+                               .Case("{s50}", RISCV::X86)
+                               .Case("{s51}", RISCV::X87)
+                               .Case("{s52}", RISCV::X88)
+                               .Case("{s53}", RISCV::X89)
+                               .Case("{s54}", RISCV::X90)
+                               .Case("{s55}", RISCV::X91)
+                               .Case("{s56}", RISCV::X92)
+                               .Case("{s57}", RISCV::X93)
+                               .Case("{s58}", RISCV::X94)
+                               .Case("{s59}", RISCV::X95)
+                               .Case("{t7}", RISCV::X96)
+                               .Case("{t8}", RISCV::X97)
+                               .Case("{t9}", RISCV::X98)
+                               .Case("{t10}", RISCV::X99)
+                               .Case("{t11}", RISCV::X100)
+                               .Case("{t12}", RISCV::X101)
+                               .Case("{t13}", RISCV::X102)
+                               .Case("{t14}", RISCV::X103)
+                               .Case("{t15}", RISCV::X104)
+                               .Case("{t16}", RISCV::X105)
+                               .Case("{t17}", RISCV::X106)
+                               .Case("{t18}", RISCV::X107)
+                               .Case("{t19}", RISCV::X108)
+                               .Case("{t20}", RISCV::X109)
+                               .Case("{t21}", RISCV::X110)
+                               .Case("{t22}", RISCV::X111)
+                               .Case("{t23}", RISCV::X112)
+                               .Case("{t24}", RISCV::X113)
+                               .Case("{t25}", RISCV::X114)
+                               .Case("{t26}", RISCV::X115)
+                               .Case("{t27}", RISCV::X116)
+                               .Case("{t28}", RISCV::X117)
+                               .Case("{t29}", RISCV::X118)
+                               .Case("{t30}", RISCV::X119)
+                               .Case("{t31}", RISCV::X120)
+                               .Case("{t32}", RISCV::X121)
+                               .Case("{t33}", RISCV::X122)
+                               .Case("{t34}", RISCV::X123)
+                               .Case("{t35}", RISCV::X124)
+                               .Case("{t36}", RISCV::X125)
+                               .Case("{t37}", RISCV::X126)
+                               .Case("{t38}", RISCV::X127)
                                .Default(RISCV::NoRegister);
   if (XRegFromAlias != RISCV::NoRegister)
     return std::make_pair(XRegFromAlias, &RISCV::GPRRegClass);
@@ -13605,9 +13710,41 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
                         .Cases("{f29}", "{ft9}", RISCV::F29_F)
                         .Cases("{f30}", "{ft10}", RISCV::F30_F)
                         .Cases("{f31}", "{ft11}", RISCV::F31_F)
+                        .Cases("{f32}", "{fa8}", RISCV::F32_F)
+                        .Cases("{f33}", "{fa9}", RISCV::F33_F)
+                        .Cases("{f34}", "{fa10}", RISCV::F34_F)
+                        .Cases("{f35}", "{fa11}", RISCV::F35_F)
+                        .Cases("{f36}", "{fa12}", RISCV::F36_F)
+                        .Cases("{f37}", "{fa13}", RISCV::F37_F)
+                        .Cases("{f38}", "{fa14}", RISCV::F38_F)
+                        .Cases("{f39}", "{fa15}", RISCV::F39_F)
+                        .Cases("{f40}", "{fs12}", RISCV::F40_F)
+                        .Cases("{f41}", "{fs13}", RISCV::F41_F)
+                        .Cases("{f42}", "{fs14}", RISCV::F42_F)
+                        .Cases("{f43}", "{fs15}", RISCV::F43_F)
+                        .Cases("{f44}", "{fs16}", RISCV::F44_F)
+                        .Cases("{f45}", "{fs17}", RISCV::F45_F)
+                        .Cases("{f46}", "{fs18}", RISCV::F46_F)
+                        .Cases("{f47}", "{fs19}", RISCV::F47_F)
+                        .Cases("{f48}", "{fs20}", RISCV::F48_F)
+                        .Cases("{f49}", "{fs21}", RISCV::F49_F)
+                        .Cases("{f50}", "{fs22}", RISCV::F50_F)
+                        .Cases("{f51}", "{fs23}", RISCV::F51_F)
+                        .Cases("{f52}", "{ft12}", RISCV::F52_F)
+                        .Cases("{f53}", "{ft13}", RISCV::F53_F)
+                        .Cases("{f54}", "{ft14}", RISCV::F54_F)
+                        .Cases("{f55}", "{ft15}", RISCV::F55_F)
+                        .Cases("{f56}", "{ft16}", RISCV::F56_F)
+                        .Cases("{f57}", "{ft17}", RISCV::F57_F)
+                        .Cases("{f58}", "{ft18}", RISCV::F58_F)
+                        .Cases("{f59}", "{ft19}", RISCV::F59_F)
+                        .Cases("{f60}", "{ft20}", RISCV::F60_F)
+                        .Cases("{f61}", "{ft21}", RISCV::F61_F)
+                        .Cases("{f62}", "{ft22}", RISCV::F62_F)
+                        .Cases("{f63}", "{ft23}", RISCV::F63_F)
                         .Default(RISCV::NoRegister);
     if (FReg != RISCV::NoRegister) {
-      assert(RISCV::F0_F <= FReg && FReg <= RISCV::F31_F && "Unknown fp-reg");
+      assert(RISCV::F0_F <= FReg && FReg <= RISCV::F63_F && "Unknown fp-reg");
       if (Subtarget.hasStdExtD() && (VT == MVT::f64 || VT == MVT::Other)) {
         unsigned RegNo = FReg - RISCV::F0_F;
         unsigned DReg = RISCV::F0_D + RegNo;
@@ -14044,12 +14181,12 @@ bool RISCVTargetLowering::decomposeMulByConstant(LLVMContext &Context, EVT VT,
         return false;
       // Break the MUL to two SLLI instructions and an ADD/SUB, if Imm needs
       // a pair of LUI/ADDI.
-      if (!Imm.isSignedIntN(12) && Imm.countTrailingZeros() < 12) {
-        APInt ImmS = Imm.ashr(Imm.countTrailingZeros());
-        if ((ImmS + 1).isPowerOf2() || (ImmS - 1).isPowerOf2() ||
-            (1 - ImmS).isPowerOf2())
-          return true;
-      }
+      // if (!Imm.isSignedIntN(12) && Imm.countTrailingZeros() < 12) {
+      //   APInt ImmS = Imm.ashr(Imm.countTrailingZeros());
+      //   if ((ImmS + 1).isPowerOf2() || (ImmS - 1).isPowerOf2() ||
+      //       (1 - ImmS).isPowerOf2())
+      //     return true;
+      // }
     }
   }
 
@@ -14239,6 +14376,9 @@ Value *RISCVTargetLowering::getIRStackGuard(IRBuilderBase &IRB) const {
 Register
 RISCVTargetLowering::getRegisterByName(const char *RegName, LLT VT,
                                        const MachineFunction &MF) const {
+  printf("get register by name %s\n", RegName);
+  llvm::errs() << "hi\n";
+  assert (false && "get register by name");
   Register Reg = MatchRegisterAltName(RegName);
   if (Reg == RISCV::NoRegister)
     Reg = MatchRegisterName(RegName);

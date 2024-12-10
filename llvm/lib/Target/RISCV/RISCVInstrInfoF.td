@@ -165,8 +165,8 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in
 class FPStore_r<bits<3> funct3, string opcodestr, RegisterClass rty,
                 SchedWrite sw>
     : RVInstS<funct3, 0, OPC_STORE_FP, (outs),
-              (ins rty:$rs2, GPRMem:$rs1, simm24:$imm24),
-              opcodestr, "$rs2, ${imm24}(${rs1})">,
+              (ins rty:$rs2, GPRMem:$rs1, simm32:$imm32),
+              opcodestr, "$rs2, ${imm32}(${rs1})">,
       Sched<[sw, ReadFStoreData, ReadFMemBase]>;
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1,

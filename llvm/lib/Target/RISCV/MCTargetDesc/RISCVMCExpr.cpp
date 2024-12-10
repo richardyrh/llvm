@@ -226,9 +226,10 @@ int64_t RISCVMCExpr::evaluateAsInt64(int64_t Value) const {
   default:
     llvm_unreachable("Invalid kind");
   case VK_RISCV_LO:
-    return SignExtend64<12>(Value);
+    return SignExtend64<32>(Value);
   case VK_RISCV_HI:
+    llvm_unreachable("Shouldn't be rv high");
     // Add 1 if bit 11 is 1, to compensate for low 12 bits being negative.
-    return ((Value + 0x800) >> 12) & 0xfffff;
+    return 0; //((Value + 0x800) >> 12) & 0xfffff;
   }
 }

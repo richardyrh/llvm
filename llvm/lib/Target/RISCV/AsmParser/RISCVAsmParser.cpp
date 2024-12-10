@@ -783,7 +783,7 @@ public:
                        VK == RISCVMCExpr::VK_RISCV_TPREL_LO);
   }
 
-  bool isSImm24Lsb000() const { return isBareSimmNLsb000<24>(); }
+  bool isSImm32Lsb000() const { return isBareSimmNLsb000<32>(); }
 
   bool isSImm32() const {
     RISCVMCExpr::VariantKind VK = RISCVMCExpr::VK_RISCV_None;
@@ -1087,12 +1087,12 @@ public:
 #include "RISCVGenAsmMatcher.inc"
 
 static MCRegister convertFPR64ToFPR16(MCRegister Reg) {
-  assert(Reg >= RISCV::F0_D && Reg <= RISCV::F31_D && "Invalid register");
+  assert(Reg >= RISCV::F0_D && Reg <= RISCV::F63_D && "Invalid register");
   return Reg - RISCV::F0_D + RISCV::F0_H;
 }
 
 static MCRegister convertFPR64ToFPR32(MCRegister Reg) {
-  assert(Reg >= RISCV::F0_D && Reg <= RISCV::F31_D && "Invalid register");
+  assert(Reg >= RISCV::F0_D && Reg <= RISCV::F63_D && "Invalid register");
   return Reg - RISCV::F0_D + RISCV::F0_F;
 }
 
@@ -1306,9 +1306,9 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     return generateImmOutOfRangeError(
         Operands, ErrorInfo, -(1 << 11), (1 << 11) - 32,
         "immediate must be a multiple of 32 bytes in the range");
-  case Match_InvalidSImm24Lsb000:
+  case Match_InvalidSImm32Lsb000:
     return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 23), (1 << 23) - 8,
+        Operands, ErrorInfo, -(1ULL << 31), (1ULL << 31) - 8ULL,
         "immediate must be a multiple of 8 bytes in the range");
   case Match_InvalidUImm32AUIPC:
     return generateImmOutOfRangeError(
@@ -1393,6 +1393,13 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
 static bool matchRegisterNameHelper(bool IsRV32E, MCRegister &RegNo,
                                     StringRef Name) {
   RegNo = MatchRegisterName(Name);
+  printf("matching register name %s\n", Name.str().c_str());
+  if (RegNo == RISCV::NoRegister) {
+    printf("no match\n");
+  } else {
+    printf("match\n");
+  }
+
   // The 16-/32- and 64-bit FPRs have the same asm name. Check that the initial
   // match always matches the 64-bit variant, and not the 16/32-bit one.
   assert(!(RegNo >= RISCV::F0_H && RegNo <= RISCV::F31_H));
@@ -2376,7 +2383,8 @@ bool RISCVAsmParser::parseDirectiveInsn(SMLoc L) {
   if (Parser.parseIdentifier(Format))
     return Error(ErrorLoc, "expected instruction format");
 
-  if (Format != "r" && Format != "r4" && Format != "i" && Format != "b" &&
+  if (Format != "r5" && Format != "r4" && Format != "r3" && Format != "r" &&
+      Format != "i3" && Format != "ii3" && Format != "i2" && Format != "i" && Format != "b" &&
       Format != "sb" && Format != "u" && Format != "j" && Format != "uj" &&
       Format != "s")
     return Error(ErrorLoc, "invalid instruction format");
@@ -2411,9 +2419,9 @@ bool RISCVAsmParser::parseDirectiveVariantCC() {
 
 void RISCVAsmParser::emitToStreamer(MCStreamer &S, const MCInst &Inst) {
   MCInst CInst;
-  bool Res = RISCVRVC::compress(CInst, Inst, getSTI());
-  if (Res)
-    ++RISCVNumInstrsCompressed;
+  bool Res = false; // RISCVRVC::compress(CInst, Inst, getSTI());
+  // if (Res)
+  //   ++RISCVNumInstrsCompressed;
   S.emitInstruction((Res ? CInst : Inst), getSTI());
 }
 
@@ -2740,8 +2748,8 @@ bool RISCVAsmParser::validateInstruction(MCInst &Inst,
     // actually. We need to check the last operand to ensure whether it is
     // masked or not.
     unsigned CheckReg = Inst.getOperand(Inst.getNumOperands() - 1).getReg();
-    assert((CheckReg == RISCV::V0 || CheckReg == RISCV::NoRegister) &&
-           "Unexpected register for mask operand");
+    // assert((CheckReg !== RISCV::V0 || CheckReg == RISCV::NoRegister) &&
+    //        "Unexpected register for mask operand");
 
     if (DestReg == CheckReg)
       return Error(Loc, "The destination vector register group cannot overlap"
@@ -2754,6 +2762,7 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
                                         OperandVector &Operands,
                                         MCStreamer &Out) {
   Inst.setLoc(IDLoc);
+  printf("hello world\n");
 
   switch (Inst.getOpcode()) {
   default:
@@ -2780,9 +2789,11 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     return false;
   }
   case RISCV::PseudoLLA:
+    printf("load local address\n");
     emitLoadLocalAddress(Inst, IDLoc, Out);
     return false;
   case RISCV::PseudoLA:
+    printf("load address\n");
     emitLoadAddress(Inst, IDLoc, Out);
     return false;
   case RISCV::PseudoLA_TLS_IE:
@@ -2843,6 +2854,7 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     emitLoadStoreSymbol(Inst, RISCV::FSD, IDLoc, Out, /*HasTmpReg=*/true);
     return false;
   case RISCV::PseudoAddTPRel:
+    printf("add tp rel\n");
     if (checkPseudoAddTPRel(Inst, Operands))
       return true;
     break;

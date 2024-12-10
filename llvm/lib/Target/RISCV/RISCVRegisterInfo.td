@@ -113,8 +113,7 @@ let RegAltNameIndices = [ABIRegAltName] in {
   def X29 : RISCVReg<29,"x29", ["t4"]>, DwarfRegNum<[29]>;
   def X30 : RISCVReg<30,"x30", ["t5"]>, DwarfRegNum<[30]>;
   def X31 : RISCVReg<31,"x31", ["t6"]>, DwarfRegNum<[31]>;
-  }
-  let CostPerUse = [0, 1] in {
+
   def X32 : RISCVReg<32,"x32", ["a8"]>,  DwarfRegNum<[32]>;
   def X33 : RISCVReg<33,"x33", ["a9"]>,  DwarfRegNum<[33]>;
   def X34 : RISCVReg<34,"x34", ["a10"]>, DwarfRegNum<[34]>;

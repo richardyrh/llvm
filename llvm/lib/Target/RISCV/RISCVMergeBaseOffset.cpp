@@ -173,6 +173,7 @@ bool RISCVMergeBaseOffsetOpt::foldLargeOffset(MachineInstr &Hi,
                                               MachineInstr &Lo,
                                               MachineInstr &TailAdd,
                                               Register GAReg) {
+  return false; // TODO (richard)
   assert((TailAdd.getOpcode() == RISCV::ADD) && "Expected ADD instruction!");
   Register Rs = TailAdd.getOperand(1).getReg();
   Register Rt = TailAdd.getOperand(2).getReg();
@@ -239,6 +240,7 @@ bool RISCVMergeBaseOffsetOpt::foldShiftedOffset(MachineInstr &Hi,
                                                 MachineInstr &Lo,
                                                 MachineInstr &TailShXAdd,
                                                 Register GAReg) {
+  return false; // TODO (richard)
   assert((TailShXAdd.getOpcode() == RISCV::SH1ADD ||
           TailShXAdd.getOpcode() == RISCV::SH2ADD ||
           TailShXAdd.getOpcode() == RISCV::SH3ADD) &&
@@ -299,6 +301,7 @@ bool RISCVMergeBaseOffsetOpt::detectAndFoldOffset(MachineInstr &Hi,
                       << Tail);
     break;
   case RISCV::ADDI: {
+    return false; // TODO (richard)
     // Offset is simply an immediate operand.
     int64_t Offset = Tail.getOperand(2).getImm();
 

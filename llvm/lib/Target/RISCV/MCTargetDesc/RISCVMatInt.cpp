@@ -65,8 +65,8 @@ static void generateInstSeqImpl(int64_t Val,
     // v[0,12) != 0 && v[12,32) == 0 : ADDI
     // v[0,12) == 0 && v[12,32) != 0 : LUI
     // v[0,32) != 0                  : LUI+ADDI(W)
-    int64_t Hi20 = ((Val + 0x800) >> 12) & 0xFFFFF;
-    int64_t Lo12 = SignExtend64<12>(Val);
+    int64_t Hi20 = 0; // ((Val + 0x800) >> 12) & 0xFFFFF;
+    int64_t Lo12 = SignExtend64<32>(Val);
 
     if (Hi20)
       Res.emplace_back(RISCV::LUI, Hi20);
@@ -79,6 +79,7 @@ static void generateInstSeqImpl(int64_t Val,
   }
 
   assert(IsRV64 && "Can't emit >32-bit imm for non-RV64 target");
+  assert(false && "rv64 target not currently supported");
 
   // In the worst case, for a full 64-bit constant, a sequence of 8 instructions
   // (i.e., LUI+ADDIW+SLLI+ADDI+SLLI+ADDI+SLLI+ADDI) has to be emitted. Note

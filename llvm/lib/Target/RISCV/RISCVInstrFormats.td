@@ -519,16 +519,16 @@ class RVInstS<bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs, dag in
              string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatS> {
   // bits<4> pred;
-  bits<24> imm24;
+  bits<32> imm32;
   bits<8> rs1;
   bits<8> rs2;
 
   let Inst{63-60} = 0; // pred;
-  let Inst{59-36} = imm24;
+  let Inst{59-36} = imm32{23-0};
   let Inst{35-28} = rs2;
   let Inst{27-20} = rs1;
   let Inst{19-17} = funct3;
-  let Inst{16-9} = 0;
+  let Inst{16-9} = imm32{31-24};
   let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
@@ -537,16 +537,16 @@ class RVInstB<bits<3> funct3, bits<2> ext2, RISCVOpcode opcode, dag outs, dag in
              string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatB> {
   // bits<4> pred;
-  bits<24> imm24;
+  bits<32> imm32;
   bits<8> rs1;
   bits<8> rs2;
 
   let Inst{63-60} = 0; // pred;
-  let Inst{59-36} = imm24;
+  let Inst{59-36} = imm32{23-0};
   let Inst{35-28} = rs2;
   let Inst{27-20} = rs1;
   let Inst{19-17} = funct3;
-  let Inst{16-9} = 0;
+  let Inst{16-9} = imm32{31-24};
   let Inst{8-7} = ext2;
   let Opcode = opcode.Value;
 }
@@ -753,16 +753,16 @@ class DirectiveInsnS<dag outs, dag ins, string argstr>
   bits<3> funct3;
 
   // bits<4> pred;
-  bits<24> imm24;
+  bits<32> imm32;
   bits<8> rs1;
   bits<8> rs2;
 
   let Inst{63-60} = 0; // pred;
-  let Inst{59-36} = imm24;
+  let Inst{59-36} = imm32{23-0};
   let Inst{35-28} = rs2;
   let Inst{27-20} = rs1;
   let Inst{19-17} = funct3;
-  let Inst{16-9} = 0;
+  let Inst{16-9} = imm32{31-24};
   let Inst{8-7} = ext2;
   let Opcode = opcode;
 
@@ -776,16 +776,16 @@ class DirectiveInsnB<dag outs, dag ins, string argstr>
   bits<3> funct3;
 
   // bits<4> pred;
-  bits<24> imm24;
+  bits<32> imm32;
   bits<8> rs1;
   bits<8> rs2;
 
   let Inst{63-60} = 0; // pred;
-  let Inst{59-36} = imm24;
+  let Inst{59-36} = imm32{23-0};
   let Inst{35-28} = rs2;
   let Inst{27-20} = rs1;
   let Inst{19-17} = funct3;
-  let Inst{16-9} = 0;
+  let Inst{16-9} = imm32{31-24};
   let Inst{8-7} = ext2;
   let Opcode = opcode;
 

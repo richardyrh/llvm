@@ -366,6 +366,7 @@ bool RISCVAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
 
 static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
                                  MCContext &Ctx) {
+  printf("fixus riscv value 0x%lx\n", Value);
   switch (Fixup.getTargetKind()) {
   default:
     llvm_unreachable("Unknown fixup kind!");
@@ -393,22 +394,24 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
   case RISCV::fixup_riscv_set_6b:
     return Value & 0x03;
   case RISCV::fixup_riscv_lo12_i:
-  case RISCV::fixup_riscv_pcrel_lo12_i:
   case RISCV::fixup_riscv_tprel_lo12_i:
+    return ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 28);
+  case RISCV::fixup_riscv_pcrel_lo12_i:
+    Ctx.reportError(Fixup.getLoc(), "the lower part of pcrel imms shouldnt be needed now, fix when encountered");
     return ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 28); // I2
     // return Value & 0xfff;
   case RISCV::fixup_riscv_lo12_s:
   case RISCV::fixup_riscv_pcrel_lo12_s:
   case RISCV::fixup_riscv_tprel_lo12_s:
-    if (!isInt<24>(Value))
-      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
-    return (Value & 0xffffff) << 36; // S-type, I3
+    return ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 9); // S-type, I3
     // return (((Value >> 5) & 0x7f) << 25) | ((Value & 0x1f) << 7);
   case RISCV::fixup_riscv_hi20:
-  case RISCV::fixup_riscv_pcrel_hi20:
   case RISCV::fixup_riscv_tprel_hi20:
+    Ctx.reportError(Fixup.getLoc(), "lui shouldnt be needed now, fix when encountered");
+    return 0;
+  case RISCV::fixup_riscv_pcrel_hi20:
     // Add 1 if bit 11 is 1, to compensate for low 12 bits being negative.
-    return ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 28);
+    return ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 9);
     // return ((Value + 0x800) >> 12) & 0xfffff;
   case RISCV::fixup_riscv_jal: {
     if (!isInt<32>(Value))
@@ -429,10 +432,11 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
     return ((Value & 0xfffff8) << 36) | (((Value >> 24) & 0xff) << 28);
   }
   case RISCV::fixup_riscv_branch: {
-    if (!isInt<24>(Value))
+    if (!isInt<32>(Value))
       Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
     if (Value & 0x7)
       Ctx.reportError(Fixup.getLoc(), "fixup value must be 8-byte aligned");
+    printf("fixus riscv branch with value 0x%lx\n", Value);
     // Need to extract imm[12], imm[10:5], imm[4:1], imm[11] from the 13-bit
     // Value.
     // unsigned Sbit = (Value >> 12) & 0x1;
@@ -445,7 +449,7 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
     // // Inst{7} = Hi1;
     // Value = (Sbit << 31) | (Mid6 << 25) | (Lo4 << 8) | (Hi1 << 7);
     // return Value;
-    return (Value & 0xfffff8) << 36;
+    return ((Value & 0xfffff8) << 36) | (((Value >> 24) & 0xff) << 9);
   }
   case RISCV::fixup_riscv_call:
   case RISCV::fixup_riscv_call_plt: {
@@ -563,6 +567,7 @@ void RISCVAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
                                  bool IsResolved,
                                  const MCSubtargetInfo *STI) const {
   MCFixupKind Kind = Fixup.getKind();
+  llvm::outs() << "applying fixup kind " << Kind << "\n";
   if (Kind >= FirstLiteralRelocationKind)
     return;
   MCContext &Ctx = Asm.getContext();
@@ -570,6 +575,7 @@ void RISCVAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
   if (!Value)
     return; // Doesn't change encoding.
   // Apply any target-specific value adjustments.
+  llvm::outs() << "adjusting fixup value " << Value << "\n";
   Value = adjustFixupValue(Fixup, Value, Ctx);
 
   // Shift the value into position.

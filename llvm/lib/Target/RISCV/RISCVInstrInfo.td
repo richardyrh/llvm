@@ -84,7 +84,7 @@ def riscv_read_cycle_wide : SDNode<"RISCVISD::READ_CYCLE_WIDE",
                                    [SDNPHasChain, SDNPSideEffect]>;
 
 def riscv_add_lo : SDNode<"RISCVISD::ADD_LO", SDTIntBinOp>;
-def riscv_hi : SDNode<"RISCVISD::HI", SDTIntUnaryOp>;
+// def riscv_hi : SDNode<"RISCVISD::HI", SDTIntUnaryOp>;
 def riscv_lla : SDNode<"RISCVISD::LLA", SDTIntUnaryOp>;
 def riscv_add_tprel : SDNode<"RISCVISD::ADD_TPREL",
                              SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
@@ -288,15 +288,15 @@ def simm32 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isInt<32>(Imm);}]> {
 //   return isInt<12>(Imm) && !isInt<6>(Imm) && isInt<12>(-Imm);}]>;
 
 // A 24-bit signed immediate where the least 3 significant bit is zero.
-def simm24_lsb000 : Operand<OtherVT> {
-  let ParserMatchClass = SImmAsmOperand<24, "Lsb000">;
+def simm32_lsb000 : Operand<OtherVT> {
+  let ParserMatchClass = SImmAsmOperand<32, "Lsb000">;
   let PrintMethod = "printBranchOperand";
   let EncoderMethod = "getImmOpValueAsr3";
-  let DecoderMethod = "decodeSImmOperandAndLsl3<24>";
+  let DecoderMethod = "decodeSImmOperandAndLsl3<32>";
   let MCOperandPredicate = [{
     int64_t Imm;
     if (MCOp.evaluateAsConstantImm(Imm))
-      return isShiftedInt<21, 3>(Imm);
+      return isShiftedInt<29, 3>(Imm);
     return MCOp.isBareSymbolRef();
   }];
   let OperandType = "OPERAND_PCREL";
@@ -542,8 +542,8 @@ include "RISCVInstrFormats.td"
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
 class BranchCC_rri<bits<3> funct3, string opcodestr>
     : RVInstB<funct3, 0, OPC_BRANCH, (outs),
-              (ins GPR:$rs1, GPR:$rs2, simm24_lsb000:$imm24),
-              opcodestr, "$rs1, $rs2, $imm24">,
+              (ins GPR:$rs1, GPR:$rs2, simm32_lsb000:$imm32),
+              opcodestr, "$rs1, $rs2, $imm32">,
       Sched<[WriteJmp, ReadJmp, ReadJmp]> {
   let isBranch = 1;
   let isTerminator = 1;
@@ -568,8 +568,8 @@ class HLoad_r<bits<7> funct7, bits<5> funct5, string opcodestr>
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
 class Store_rri<bits<3> funct3, string opcodestr>
     : RVInstS<funct3, 0, OPC_STORE, (outs),
-              (ins GPR:$rs2, GPRMem:$rs1, simm24:$imm24),
-              opcodestr, "$rs2, ${imm24}(${rs1})">;
+              (ins GPR:$rs2, GPRMem:$rs1, simm32:$imm32),
+              opcodestr, "$rs2, ${imm32}(${rs1})">;
 
 class HStore_rr<bits<7> funct7, string opcodestr>
     : RVInstR3<funct7, 0b100, 0, OPC_SYSTEM, (outs),
@@ -965,30 +965,30 @@ def : InstAlias<"sgt $rd, $rs, $rt", (SLT GPR:$rd, GPR:$rt, GPR:$rs), 0>;
 def : InstAlias<"sgtu $rd, $rs, $rt", (SLTU GPR:$rd, GPR:$rt, GPR:$rs), 0>;
 
 def : InstAlias<"beqz $rs, $offset",
-                (BEQ GPR:$rs,      X0, simm24_lsb000:$offset)>;
+                (BEQ GPR:$rs,      X0, simm32_lsb000:$offset)>;
 def : InstAlias<"bnez $rs, $offset",
-                (BNE GPR:$rs,      X0, simm24_lsb000:$offset)>;
+                (BNE GPR:$rs,      X0, simm32_lsb000:$offset)>;
 def : InstAlias<"blez $rs, $offset",
-                (BGE      X0, GPR:$rs, simm24_lsb000:$offset)>;
+                (BGE      X0, GPR:$rs, simm32_lsb000:$offset)>;
 def : InstAlias<"bgez $rs, $offset",
-                (BGE GPR:$rs,      X0, simm24_lsb000:$offset)>;
+                (BGE GPR:$rs,      X0, simm32_lsb000:$offset)>;
 def : InstAlias<"bltz $rs, $offset",
-                (BLT GPR:$rs,      X0, simm24_lsb000:$offset)>;
+                (BLT GPR:$rs,      X0, simm32_lsb000:$offset)>;
 def : InstAlias<"bgtz $rs, $offset",
-                (BLT      X0, GPR:$rs, simm24_lsb000:$offset)>;
+                (BLT      X0, GPR:$rs, simm32_lsb000:$offset)>;
 
 // Always output the canonical mnemonic for the pseudo branch instructions.
 // The GNU tools emit the canonical mnemonic for the branch pseudo instructions
 // as well (e.g. "bgt" will be recognised by the assembler but never printed by
 // objdump). Match this behaviour by setting a zero weight.
 def : InstAlias<"bgt $rs, $rt, $offset",
-                (BLT  GPR:$rt, GPR:$rs, simm24_lsb000:$offset), 0>;
+                (BLT  GPR:$rt, GPR:$rs, simm32_lsb000:$offset), 0>;
 def : InstAlias<"ble $rs, $rt, $offset",
-                (BGE  GPR:$rt, GPR:$rs, simm24_lsb000:$offset), 0>;
+                (BGE  GPR:$rt, GPR:$rs, simm32_lsb000:$offset), 0>;
 def : InstAlias<"bgtu $rs, $rt, $offset",
-                (BLTU GPR:$rt, GPR:$rs, simm24_lsb000:$offset), 0>;
+                (BLTU GPR:$rt, GPR:$rs, simm32_lsb000:$offset), 0>;
 def : InstAlias<"bleu $rs, $rt, $offset",
-                (BGEU GPR:$rt, GPR:$rs, simm24_lsb000:$offset), 0>;
+                (BGEU GPR:$rt, GPR:$rs, simm32_lsb000:$offset), 0>;
 
 def : InstAlias<"j $offset",   (JAL X0, simm32_lsb000_jal:$offset)>;
 def : InstAlias<"jal $offset", (JAL X1, simm32_lsb000_jal:$offset)>;
@@ -1173,8 +1173,8 @@ def InsnI2_Mem : DirectiveInsnI2<(outs AnyReg:$rd), (ins uimm7_opcode:$opcode,
 def InsnB : DirectiveInsnB<(outs), (ins uimm7_opcode:$opcode,
                                         uimm2:$ext2, uimm3:$funct3,
                                         AnyReg:$rs1, AnyReg:$rs2,
-                                        simm24_lsb000:$imm24),
-                           "$opcode, $funct3, $rs1, $rs2, $imm24">;
+                                        simm32_lsb000:$imm32),
+                           "$opcode, $funct3, $rs1, $rs2, $imm32">;
 def InsnU : DirectiveInsnU<(outs AnyReg:$rd), (ins uimm7_opcode:$opcode,
                                                    uimm2:$ext2,
                                                    uimm32_lui:$imm32),
@@ -1186,8 +1186,8 @@ def InsnJ : DirectiveInsnJ<(outs AnyReg:$rd), (ins uimm7_opcode:$opcode,
 def InsnS : DirectiveInsnS<(outs), (ins uimm7_opcode:$opcode,
                                         uimm2:$ext2, uimm3:$funct3,
                                         AnyReg:$rs2, AnyReg:$rs1,
-                                        simm24:$imm24),
-                           "$opcode, $funct3, $rs2, ${imm24}(${rs1})">;
+                                        simm32:$imm32),
+                           "$opcode, $funct3, $rs2, ${imm32}(${rs1})">;
 }
 
 // Use InstAliases to match these so that we can combine the insn and format
@@ -1226,13 +1226,13 @@ def : InstAlias<".insn_i $opcode, $funct3, $rd, ${imm32}(${rs1})",
                 (InsnI2_Mem AnyReg:$rd, uimm7_opcode:$opcode, 0, uimm3:$funct3,
                             AnyReg:$rs1, simm32:$imm32)>;
 
-def : InstAlias<".insn_b $opcode, $funct3, $rs1, $rs2, $imm24",
+def : InstAlias<".insn_b $opcode, $funct3, $rs1, $rs2, $imm32",
                 (InsnB uimm7_opcode:$opcode, 0, uimm3:$funct3, AnyReg:$rs1,
-                       AnyReg:$rs2, simm24_lsb000:$imm24)>;
+                       AnyReg:$rs2, simm32_lsb000:$imm32)>;
 // Accept sb as an alias for b.
-def : InstAlias<".insn_sb $opcode, $funct3, $rs1, $rs2, $imm24",
+def : InstAlias<".insn_sb $opcode, $funct3, $rs1, $rs2, $imm32",
                 (InsnB uimm7_opcode:$opcode, 0, uimm3:$funct3, AnyReg:$rs1,
-                       AnyReg:$rs2, simm24_lsb000:$imm24)>;
+                       AnyReg:$rs2, simm32_lsb000:$imm32)>;
 def : InstAlias<".insn_u $opcode, $rd, $imm32",
                 (InsnU AnyReg:$rd, uimm7_opcode:$opcode, 0, uimm32_lui:$imm32)>;
 def : InstAlias<".insn_j $opcode, $rd, $imm32",
@@ -1240,9 +1240,9 @@ def : InstAlias<".insn_j $opcode, $rd, $imm32",
 // Accept uj as an alias for j.
 def : InstAlias<".insn_uj $opcode, $rd, $imm32",
                 (InsnJ AnyReg:$rd, uimm7_opcode:$opcode, 0, simm32_lsb000_jal:$imm32)>;
-def : InstAlias<".insn_s $opcode, $funct3, $rs2, ${imm24}(${rs1})",
+def : InstAlias<".insn_s $opcode, $funct3, $rs2, ${imm32}(${rs1})",
                 (InsnS uimm7_opcode:$opcode, 0, uimm3:$funct3, AnyReg:$rs2,
-                       AnyReg:$rs1, simm24:$imm24)>;
+                       AnyReg:$rs1, simm32:$imm32)>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1396,10 +1396,10 @@ def : Pat<(FrameAddrRegImm GPR:$rs1, simm32:$imm32),
 
 /// HI and ADD_LO address nodes.
 
-def : Pat<(riscv_hi tglobaladdr:$in), (LUI tglobaladdr:$in)>;
-def : Pat<(riscv_hi tblockaddress:$in), (LUI tblockaddress:$in)>;
-def : Pat<(riscv_hi tjumptable:$in), (LUI tjumptable:$in)>;
-def : Pat<(riscv_hi tconstpool:$in), (LUI tconstpool:$in)>;
+// def : Pat<(riscv_hi tglobaladdr:$in), (LUI tglobaladdr:$in)>;
+// def : Pat<(riscv_hi tblockaddress:$in), (LUI tblockaddress:$in)>;
+// def : Pat<(riscv_hi tjumptable:$in), (LUI tjumptable:$in)>;
+// def : Pat<(riscv_hi tconstpool:$in), (LUI tconstpool:$in)>;
 
 def : Pat<(riscv_add_lo GPR:$hi, tglobaladdr:$lo),
           (ADDI GPR:$hi, tglobaladdr:$lo)>;
@@ -1412,7 +1412,7 @@ def : Pat<(riscv_add_lo GPR:$hi, tconstpool:$lo),
 
 /// TLS address nodes.
 
-def : Pat<(riscv_hi tglobaltlsaddr:$in), (LUI tglobaltlsaddr:$in)>;
+// def : Pat<(riscv_hi tglobaltlsaddr:$in), (LUI tglobaltlsaddr:$in)>;
 def : Pat<(riscv_add_tprel GPR:$rs1, GPR:$rs2, tglobaltlsaddr:$src),
           (PseudoAddTPRel GPR:$rs1, GPR:$rs2, tglobaltlsaddr:$src)>;
 def : Pat<(riscv_add_lo GPR:$src, tglobaltlsaddr:$lo),
@@ -1541,11 +1541,11 @@ defm Select_GPR : SelectCC_GPR_rrirr<GPR>;
 
 // Match `riscv_brcc` and lower to the appropriate RISC-V branch instruction.
 multiclass BccPat<CondCode Cond, RVInstB Inst> {
-  def : Pat<(riscv_brcc GPR:$rs1, GPR:$rs2, Cond, bb:$imm24),
-            (Inst GPR:$rs1, GPR:$rs2, simm24_lsb000:$imm24)>;
+  def : Pat<(riscv_brcc GPR:$rs1, GPR:$rs2, Cond, bb:$imm32),
+            (Inst GPR:$rs1, GPR:$rs2, simm32_lsb000:$imm32)>;
   // Explicitly select 0 to X0. The register coalescer doesn't always do it.
-  def : Pat<(riscv_brcc GPR:$rs1, 0, Cond, bb:$imm24),
-            (Inst GPR:$rs1, X0, simm24_lsb000:$imm24)>;
+  def : Pat<(riscv_brcc GPR:$rs1, 0, Cond, bb:$imm32),
+            (Inst GPR:$rs1, X0, simm32_lsb000:$imm32)>;
 }
 
 // class BrccCompessOpt<CondCode Cond, RVInstB Inst> : Pat<(riscv_brcc GPR:$lhs, simm12_no6:$Constant, Cond, bb:$place),
@@ -1712,8 +1712,8 @@ defm : LdPat<zextloadi16, LHU>;
 
 multiclass StPat<PatFrag StoreOp, RVInst Inst, RegisterClass StTy,
                  ValueType vt> {
-  def : Pat<(StoreOp (vt StTy:$rs2), (AddrRegImm GPR:$rs1, simm24:$imm24)),
-            (Inst StTy:$rs2, GPR:$rs1, simm24:$imm24)>;
+  def : Pat<(StoreOp (vt StTy:$rs2), (AddrRegImm GPR:$rs1, simm32:$imm32)),
+            (Inst StTy:$rs2, GPR:$rs1, simm32:$imm32)>;
 }
 
 defm : StPat<truncstorei8, SB, GPR, XLenVT>;

@@ -114,9 +114,11 @@ void RISCVMCCodeEmitter::expandFunctionCall(const MCInst &MI, raw_ostream &OS,
     Func = MI.getOperand(0);
     Ra = RISCV::X6;
   } else if (MI.getOpcode() == RISCV::PseudoCALLReg) {
+    printf("pseudo call reg inst\n");
     Func = MI.getOperand(1);
     Ra = MI.getOperand(0).getReg();
   } else if (MI.getOpcode() == RISCV::PseudoCALL) {
+    printf("pseudo call inst\n");
     Func = MI.getOperand(0);
     Ra = RISCV::X1;
   } else if (MI.getOpcode() == RISCV::PseudoJump) {
@@ -187,6 +189,18 @@ void RISCVMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
                                            SmallVectorImpl<MCFixup> &Fixups,
                                            const MCSubtargetInfo &STI) const {
   const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
+
+  const MCRegisterInfo *regInfo = Ctx.getRegisterInfo();
+  
+  // Print the instruction to stdout using llvm::outs().
+  if (regInfo) {
+      llvm::outs() << "Instruction: ";
+      MI.print(llvm::outs(), regInfo);
+      llvm::outs() << "\n";
+  } else {
+      llvm::errs() << "Error: MCRegisterInfo is null.\n";
+  }
+
   // Get byte count of instruction.
   unsigned Size = Desc.getSize();
 
@@ -256,6 +270,7 @@ RISCVMCCodeEmitter::getImmOpValueAsr1(const MCInst &MI, unsigned OpNo,
   if (MO.isImm()) {
     unsigned Res = MO.getImm();
     assert((Res & 1) == 0 && "LSB is non-zero");
+    llvm_unreachable("shouldn't emit this kind of immediate");
     return Res >> 1;
   }
 
@@ -271,7 +286,8 @@ RISCVMCCodeEmitter::getImmOpValueAsr3(const MCInst &MI, unsigned OpNo,
   if (MO.isImm()) {
     unsigned Res = MO.getImm();
     assert((Res & 7) == 0 && "LSB is non-zero");
-    return Res >> 3;
+    return Res; // now we explicitly encode the 3 zeros
+    // return Res >> 3;
   }
 
   return getImmOpValue(MI, OpNo, Fixups, STI);
@@ -282,6 +298,11 @@ unsigned RISCVMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
                                            const MCSubtargetInfo &STI) const {
   bool EnableRelax = STI.getFeatureBits()[RISCV::FeatureRelax];
   const MCOperand &MO = MI.getOperand(OpNo);
+
+  llvm::outs() << "get imm op value for operand: ";
+  const MCRegisterInfo *regInfo = Ctx.getRegisterInfo();
+  MO.print(llvm::outs(), regInfo);
+  llvm::outs() << "\n";
 
   MCInstrDesc const &Desc = MCII.get(MI.getOpcode());
   unsigned MIFrm = RISCVII::getFormat(Desc.TSFlags);
@@ -325,6 +346,7 @@ unsigned RISCVMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
       RelaxCandidate = true;
       break;
     case RISCVMCExpr::VK_RISCV_PCREL_LO:
+      printf("kind is pcrel_lo\n");
       if (MIFrm == RISCVII::InstFormatI2)
         FixupKind = RISCV::fixup_riscv_pcrel_lo12_i;
       else if (MIFrm == RISCVII::InstFormatS)
@@ -335,10 +357,12 @@ unsigned RISCVMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
       RelaxCandidate = true;
       break;
     case RISCVMCExpr::VK_RISCV_PCREL_HI:
+      printf("kind is pcrel_hi\n");
       FixupKind = RISCV::fixup_riscv_pcrel_hi20;
       RelaxCandidate = true;
       break;
     case RISCVMCExpr::VK_RISCV_GOT_HI:
+      printf("kind is got_hi\n");
       FixupKind = RISCV::fixup_riscv_got_hi20;
       break;
     case RISCVMCExpr::VK_RISCV_TPREL_LO:
@@ -362,6 +386,7 @@ unsigned RISCVMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
       FixupKind = RISCV::fixup_riscv_tls_gd_hi20;
       break;
     case RISCVMCExpr::VK_RISCV_CALL:
+      printf("kind is call\n");
       FixupKind = RISCV::fixup_riscv_call;
       RelaxCandidate = true;
       break;
@@ -373,8 +398,10 @@ unsigned RISCVMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
   } else if (Kind == MCExpr::SymbolRef &&
              cast<MCSymbolRefExpr>(Expr)->getKind() == MCSymbolRefExpr::VK_None) {
     if (MIFrm == RISCVII::InstFormatJ) {
+      printf("kind is jal\n");
       FixupKind = RISCV::fixup_riscv_jal;
     } else if (MIFrm == RISCVII::InstFormatB) {
+      printf("kind is branch\n");
       FixupKind = RISCV::fixup_riscv_branch;
     } else if (MIFrm == RISCVII::InstFormatCJ) {
       FixupKind = RISCV::fixup_riscv_rvc_jump;

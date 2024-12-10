@@ -925,6 +925,9 @@ void MCAssembler::layout(MCAsmLayout &Layout) {
         MCValue Target;
         std::tie(Target, FixedValue, IsResolved) =
             handleFixup(Layout, Frag, Fixup);
+        llvm::outs() << "target is ";
+        Target.print(llvm::outs());
+        llvm::outs() << "\nfixed value " << FixedValue << " is resolved: " << IsResolved << "\n";
         getBackend().applyFixup(*this, Fixup, Target, Contents, FixedValue,
                                 IsResolved, STI);
       }

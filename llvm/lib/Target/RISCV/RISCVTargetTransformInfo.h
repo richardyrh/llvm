@@ -303,10 +303,10 @@ public:
     case RISCVRegisterClass::GPRRC:
       // 31 = 32 GPR - x0 (zero register)
       // FIXME: Should we exclude fixed registers like SP, TP or GP?
-      return 31;
+      return 127;
     case RISCVRegisterClass::FPRRC:
       if (ST->hasStdExtF())
-        return 32;
+        return 64;
       return 0;
     case RISCVRegisterClass::VRRC:
       // Although there are 32 vector registers, v0 is special in that it is the

@@ -270,12 +270,10 @@ static void addImplySP(MCInst &Inst, int64_t Address,
       Inst.getOpcode() == RISCV::C_FSDSP ||
       Inst.getOpcode() == RISCV::C_ADDI4SPN) {
     DecodeGPRRegisterClass(Inst, 2, Address, Decoder);
-    assert(false);
   }
   if (Inst.getOpcode() == RISCV::C_ADDI16SP) {
     DecodeGPRRegisterClass(Inst, 2, Address, Decoder);
     DecodeGPRRegisterClass(Inst, 2, Address, Decoder);
-    assert(false);
   }
 }
 
@@ -326,7 +324,7 @@ static DecodeStatus decodeSImmOperandAndLsl3(MCInst &Inst, uint64_t Imm,
   // Sign-extend the number in the bottom N bits of Imm after accounting for
   // the fact that the N bit immediate is stored in N-1 bits (the LSB is
   // always zero)
-  Inst.addOperand(MCOperand::createImm(SignExtend64<N>(Imm << 3)));
+  Inst.addOperand(MCOperand::createImm(SignExtend64<N>(Imm)));
   return MCDisassembler::Success;
 }
 
@@ -334,7 +332,7 @@ template <unsigned N>
 static DecodeStatus decodeSImmOperandAndLsl1(MCInst &Inst, uint64_t Imm,
                                              int64_t Address,
                                              const MCDisassembler *Decoder) {
-  assert(false && "compressed insts not suported");
+  // assert(false && "compressed insts not suported");
   Inst.addOperand(MCOperand::createImm(SignExtend64<N>(Imm << 1)));
   return MCDisassembler::Fail;
 }
