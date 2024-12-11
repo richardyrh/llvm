@@ -386,8 +386,15 @@ protected:
   /// Hold the set of supported register banks.
   RegisterBank **RegBanks;
 
+  /// Hold the set of supported register stripes.
+  RegisterBank **RegStripes;
+
   /// Total number of register banks.
   unsigned NumRegBanks;
+
+  /// Total number of register stripes.
+  unsigned NumRegStripes;
+
 
   /// Keep dynamically allocated PartialMapping in a separate map.
   /// This shouldn't be needed when everything gets TableGen'ed.
@@ -417,6 +424,9 @@ protected:
   /// RegisterBank instances.
   RegisterBankInfo(RegisterBank **RegBanks, unsigned NumRegBanks);
 
+  RegisterBankInfo(RegisterBank **RegBanks, unsigned NumRegBanks,
+                   RegisterBank **RegStripes, unsigned NumRegStripes);
+
   /// This constructor is meaningless.
   /// It just provides a default constructor that can be used at link time
   /// when GlobalISel is not built.
@@ -431,6 +441,11 @@ protected:
   RegisterBank &getRegBank(unsigned ID) {
     assert(ID < getNumRegBanks() && "Accessing an unknown register bank");
     return *RegBanks[ID];
+  }
+
+  const RegisterBank &getRegStripe(unsigned ID) {
+    assert(ID < getNumRegStripes() && "Accessing an unknown register stripe");
+    return *RegStripes[ID];
   }
 
   /// Get the MinimalPhysRegClass for Reg.
@@ -576,6 +591,9 @@ public:
     return const_cast<RegisterBankInfo *>(this)->getRegBank(ID);
   }
 
+  const RegisterBank &getRegStripe(unsigned ID) const {
+    return const_cast<RegisterBankInfo *>(this)->getRegStripe(ID);
+  }
   /// Get the register bank of \p Reg.
   /// If Reg has not been assigned a register, a register class,
   /// or a register bank, then this returns nullptr.
@@ -584,8 +602,13 @@ public:
   const RegisterBank *getRegBank(Register Reg, const MachineRegisterInfo &MRI,
                                  const TargetRegisterInfo &TRI) const;
 
+  const RegisterBank *getRegStripe(Register Reg, const MachineRegisterInfo &MRI,
+                                 const TargetRegisterInfo &TRI) const;
+
   /// Get the total number of register banks.
   unsigned getNumRegBanks() const { return NumRegBanks; }
+
+  unsigned getNumRegStripes() const { return NumRegStripes; }
 
   /// Get a register bank that covers \p RC.
   ///
@@ -601,6 +624,11 @@ public:
   /// \todo This should be TableGen'ed.
   virtual const RegisterBank &
   getRegBankFromRegClass(const TargetRegisterClass &RC, LLT Ty) const {
+    llvm_unreachable("The target must override this method");
+  }
+
+  virtual const RegisterBank &
+  getRegStripeFromRegClass(const TargetRegisterClass &RC, LLT Ty) const {
     llvm_unreachable("The target must override this method");
   }
 

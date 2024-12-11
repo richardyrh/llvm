@@ -280,6 +280,20 @@ def GPRTC : RegisterClass<"RISCV", [XLenVT], 32, (add
   let RegInfos = XLenRI;
 }
 
+// GPR classes for each bank (stripe) of registers (mod 4)
+def GPRB0 : RegisterClass<"RISCV", [XLenVT], 32, (add X0, X4, X8, X12, X16, X20, X24, X28)> {
+  let RegInfos = XLenRI;
+}
+def GPRB1 : RegisterClass<"RISCV", [XLenVT], 32, (add X1, X5, X9, X13, X17, X21, X25, X29)> {
+  let RegInfos = XLenRI;
+}
+def GPRB2 : RegisterClass<"RISCV", [XLenVT], 32, (add X2, X6, X10, X14, X18, X22, X26, X30)> {
+  let RegInfos = XLenRI;
+}
+def GPRB3 : RegisterClass<"RISCV", [XLenVT], 32, (add X3, X7, X11, X15, X19, X23, X27, X31)> {
+  let RegInfos = XLenRI;
+}
+
 def SP : RegisterClass<"RISCV", [XLenVT], 32, (add X2)> {
   let RegInfos = XLenRI;
 }
@@ -409,6 +423,13 @@ def FPR64C : RegisterClass<"RISCV", [f64], 64, (add
   (sequence "F%u_D", 8, 9)
 )>;
 
+// FPR classes for each bank (stripe) of registers (mod 4)
+def FPRB0 : RegisterClass<"RISCV", [f32], 32, (add F0_F, F4_F, F8_F, F12_F, F16_F, F20_F, F24_F, F28_F)>;
+def FPRB1 : RegisterClass<"RISCV", [f32], 32, (add F1_F, F5_F, F9_F, F13_F, F17_F, F21_F, F25_F, F29_F)>;
+def FPRB2 : RegisterClass<"RISCV", [f32], 32, (add F2_F, F6_F, F10_F, F14_F, F18_F, F22_F, F26_F, F30_F)>;
+def FPRB3 : RegisterClass<"RISCV", [f32], 32, (add F3_F, F7_F, F11_F, F15_F, F19_F, F23_F, F27_F, F31_F)>;
+
+//===----------------------------------------------------------------------===//
 // Vector type mapping to LLVM types.
 //
 // The V vector extension requires that VLEN >= 128 and <= 65536.
