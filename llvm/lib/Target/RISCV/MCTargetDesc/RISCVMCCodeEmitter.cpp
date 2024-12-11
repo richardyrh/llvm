@@ -122,10 +122,11 @@ void RISCVMCCodeEmitter::expandFunctionCall(const MCInst &MI, raw_ostream &OS,
     Func = MI.getOperand(0);
     Ra = RISCV::X1;
   } else if (MI.getOpcode() == RISCV::PseudoJump) {
+    printf("pseudo jump inst\n");
     Func = MI.getOperand(1);
     Ra = MI.getOperand(0).getReg();
   }
-  uint32_t Binary;
+  uint64_t Binary;
 
   assert(Func.isExpr() && "Expected expression");
 
@@ -181,7 +182,7 @@ void RISCVMCCodeEmitter::expandAddTPRel(const MCInst &MI, raw_ostream &OS,
                        .addOperand(DestReg)
                        .addOperand(SrcReg)
                        .addOperand(TPReg);
-  uint32_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
+  uint64_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
   support::endian::write(OS, Binary, support::little);
 }
 
