@@ -5,7 +5,7 @@ def RISCV_CUSTOM1 : RISCVOpcode<"CUSTOM1", 0b0101011>;   // 0x2B
 def RISCV_CUSTOM2 : RISCVOpcode<"CUSTOM2", 0b1011011>;   // 0x5B
 def RISCV_CUSTOM3 : RISCVOpcode<"CUSTOM3", 0b1111011>;   // 0x7B
 
-class VXInstR4<RISCVOpcode opcode, dag outs, dag ins, string opcodestr, string argstr>
+/* class VXInstR4<RISCVOpcode opcode, dag outs, dag ins, string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR4> {
   bits<5> rs3;
   bits<2> funct2;
@@ -21,6 +21,7 @@ class VXInstR4<RISCVOpcode opcode, dag outs, dag ins, string opcodestr, string a
   let Inst{14-12} = funct3;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+} */
 }
 
 let hasSideEffects = 1, mayStore = 0 , mayLoad = 0 in {
@@ -52,18 +53,11 @@ def VX_PRED : RVInstR<0, 5, RISCV_CUSTOM0, (outs), (ins GPR:$rs1, GPR:$rs2), "vx
     let rd  = 0;
 }
 
-def VX_TEX : VXInstR4<RISCV_CUSTOM1, (outs GPR:$rd), (ins uimm2:$funct2, GPR:$rs1, GPR:$rs2, GPR:$rs3), "vx_tex", "$rd, $funct2, $rs1, $rs2, $rs3">, Sched<[]> {
-    let funct3 = 0;
-}
+def VX_TEX : RVInstR4<0b00, 0b000, 0b00, RISCV_CUSTOM1, (outs GPR:$rd), (ins uimm2:$funct2, GPR:$rs1, GPR:$rs2, GPR:$rs3), "vx_tex", "$rd, $funct2, $rs1, $rs2, $rs3">, Sched<[]>;
 
-def VX_CMOV : VXInstR4<RISCV_CUSTOM1, (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2, GPR:$rs3), "vx_cmov", "$rd, $rs1, $rs2, $rs3">, Sched<[]> {
-    let funct3 = 1;
-    let funct2 = 0;
-}
+def VX_CMOV : RVInstR4<0b00, 0b001, 0b00, RISCV_CUSTOM1, (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2, GPR:$rs3), "vx_cmov", "$rd, $rs1, $rs2, $rs3">, Sched<[]>;
 
-def VX_ROP : VXInstR4<RISCV_CUSTOM1, (outs), (ins GPR:$rs1, GPR:$rs2, GPR:$rs3), "vx_rop", "$rs1, $rs2, $rs3">, Sched<[]> {
-    let funct3 = 1;
-    let funct2 = 1;
+def VX_ROP : RVInstR4<0b01, 0b001, 0b00, RISCV_CUSTOM1, (outs), (ins GPR:$rs1, GPR:$rs2, GPR:$rs3), "vx_rop", "$rs1, $rs2, $rs3">, Sched<[]> {
     let rd     = 0;
 }
 
