@@ -403,8 +403,6 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
     // uint32_t imm11 = extractBits(val, 11, 11) << 7;
     // insn |= imm12 | imm10_5 | imm4_1 | imm11;
     
-    llvm::outs() << "i got " << val << "\n";
-
     uint64_t insn = setImm_S(read64le(loc), val);
 
     write64le(loc, insn);
