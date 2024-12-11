@@ -281,16 +281,24 @@ def GPRTC : RegisterClass<"RISCV", [XLenVT], 32, (add
 }
 
 // GPR classes for each bank (stripe) of registers (mod 4)
-def GPRB0 : RegisterClass<"RISCV", [XLenVT], 32, (add X0, X4, X8, X12, X16, X20, X24, X28)> {
+def GPRB0 : RegisterClass<"RISCV", [XLenVT], 32,
+  (add X0, X4, X8, X12, X16, X20, X24, X28, X32, X36, X40, X44, X48, X52, X56, X60,
+    X64, X68, X72, X76, X80, X84, X88, X92, X96, X100, X104, X108, X112, X116, X120, X124)> {
   let RegInfos = XLenRI;
 }
-def GPRB1 : RegisterClass<"RISCV", [XLenVT], 32, (add X1, X5, X9, X13, X17, X21, X25, X29)> {
+def GPRB1 : RegisterClass<"RISCV", [XLenVT], 32, 
+  (add X1, X5, X9, X13, X17, X21, X25, X29, X33, X37, X41, X45, X49, X53, X57, X61,
+    X65, X69, X73, X77, X81, X85, X89, X93, X97, X101, X105, X109, X113, X117, X121, X125)> {
   let RegInfos = XLenRI;
 }
-def GPRB2 : RegisterClass<"RISCV", [XLenVT], 32, (add X2, X6, X10, X14, X18, X22, X26, X30)> {
+def GPRB2 : RegisterClass<"RISCV", [XLenVT], 32, 
+  (add X2, X6, X10, X14, X18, X22, X26, X30, X34, X38, X42, X46, X50, X54, X58, X62,
+    X66, X70, X74, X78, X82, X86, X90, X94, X98, X102, X106, X110, X114, X118, X122, X126)> {
   let RegInfos = XLenRI;
 }
-def GPRB3 : RegisterClass<"RISCV", [XLenVT], 32, (add X3, X7, X11, X15, X19, X23, X27, X31)> {
+def GPRB3 : RegisterClass<"RISCV", [XLenVT], 32, 
+  (add X3, X7, X11, X15, X19, X23, X27, X31, X35, X39, X43, X47, X51, X55, X59, X63,
+    X67, X71, X75, X79, X83, X87, X91, X95, X99, X103, X107, X111, X115, X119, X123, X127)> {
   let RegInfos = XLenRI;
 }
 
@@ -424,10 +432,10 @@ def FPR64C : RegisterClass<"RISCV", [f64], 64, (add
 )>;
 
 // FPR classes for each bank (stripe) of registers (mod 4)
-def FPRB0 : RegisterClass<"RISCV", [f32], 32, (add F0_F, F4_F, F8_F, F12_F, F16_F, F20_F, F24_F, F28_F)>;
-def FPRB1 : RegisterClass<"RISCV", [f32], 32, (add F1_F, F5_F, F9_F, F13_F, F17_F, F21_F, F25_F, F29_F)>;
-def FPRB2 : RegisterClass<"RISCV", [f32], 32, (add F2_F, F6_F, F10_F, F14_F, F18_F, F22_F, F26_F, F30_F)>;
-def FPRB3 : RegisterClass<"RISCV", [f32], 32, (add F3_F, F7_F, F11_F, F15_F, F19_F, F23_F, F27_F, F31_F)>;
+def FPRB0 : RegisterClass<"RISCV", [f32], 32, (add F0_F, F4_F, F8_F, F12_F, F16_F, F20_F, F24_F, F28_F, F32_F, F36_F, F40_F, F44_F, F48_F, F52_F, F56_F, F60_F)>;
+def FPRB1 : RegisterClass<"RISCV", [f32], 32, (add F1_F, F5_F, F9_F, F13_F, F17_F, F21_F, F25_F, F29_F, F33_F, F37_F, F41_F, F45_F, F49_F, F53_F, F57_F, F61_F)>;
+def FPRB2 : RegisterClass<"RISCV", [f32], 32, (add F2_F, F6_F, F10_F, F14_F, F18_F, F22_F, F26_F, F30_F, F34_F, F38_F, F42_F, F46_F, F50_F, F54_F, F58_F, F62_F)>;
+def FPRB3 : RegisterClass<"RISCV", [f32], 32, (add F3_F, F7_F, F11_F, F15_F, F19_F, F23_F, F27_F, F31_F, F35_F, F39_F, F43_F, F47_F, F51_F, F55_F, F59_F, F63_F)>;
 
 //===----------------------------------------------------------------------===//
 // Vector type mapping to LLVM types.

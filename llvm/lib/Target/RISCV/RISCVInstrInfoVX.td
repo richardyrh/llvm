@@ -22,7 +22,6 @@ def RISCV_CUSTOM3 : RISCVOpcode<"CUSTOM3", 0b1111011>;   // 0x7B
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
 } */
-}
 
 let hasSideEffects = 1, mayStore = 0 , mayLoad = 0 in {
 
