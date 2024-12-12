@@ -37,21 +37,14 @@ static cl::opt<bool>
 
 static_assert(RISCV::X1 == RISCV::X0 + 1, "Register list not consecutive");
 static_assert(RISCV::X31 == RISCV::X0 + 31, "Register list not consecutive");
-static_assert(RISCV::X127 == RISCV::X0 + 127, "Register list not consecutive");
 static_assert(RISCV::F1_H == RISCV::F0_H + 1, "Register list not consecutive");
 static_assert(RISCV::F31_H == RISCV::F0_H + 31,
-              "Register list not consecutive");
-static_assert(RISCV::F63_H == RISCV::F0_H + 63,
               "Register list not consecutive");
 static_assert(RISCV::F1_F == RISCV::F0_F + 1, "Register list not consecutive");
 static_assert(RISCV::F31_F == RISCV::F0_F + 31,
               "Register list not consecutive");
-static_assert(RISCV::F63_F == RISCV::F0_F + 63,
-              "Register list not consecutive");
 static_assert(RISCV::F1_D == RISCV::F0_D + 1, "Register list not consecutive");
 static_assert(RISCV::F31_D == RISCV::F0_D + 31,
-              "Register list not consecutive");
-static_assert(RISCV::F63_D == RISCV::F0_D + 63,
               "Register list not consecutive");
 static_assert(RISCV::V1 == RISCV::V0 + 1, "Register list not consecutive");
 static_assert(RISCV::V31 == RISCV::V0 + 31, "Register list not consecutive");

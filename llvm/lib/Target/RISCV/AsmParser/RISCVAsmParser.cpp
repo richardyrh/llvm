@@ -1087,12 +1087,12 @@ public:
 #include "RISCVGenAsmMatcher.inc"
 
 static MCRegister convertFPR64ToFPR16(MCRegister Reg) {
-  assert(Reg >= RISCV::F0_D && Reg <= RISCV::F63_D && "Invalid register");
+  assert(Reg >= RISCV::F0_D && Reg <= RISCV::F31_D && "Invalid register");
   return Reg - RISCV::F0_D + RISCV::F0_H;
 }
 
 static MCRegister convertFPR64ToFPR32(MCRegister Reg) {
-  assert(Reg >= RISCV::F0_D && Reg <= RISCV::F63_D && "Invalid register");
+  assert(Reg >= RISCV::F0_D && Reg <= RISCV::F31_D && "Invalid register");
   return Reg - RISCV::F0_D + RISCV::F0_F;
 }
 

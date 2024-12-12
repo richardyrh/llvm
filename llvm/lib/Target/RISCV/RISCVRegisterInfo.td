@@ -114,106 +114,6 @@ let RegAltNameIndices = [ABIRegAltName] in {
   def X30 : RISCVReg<30,"x30", ["t5"]>, DwarfRegNum<[30]>;
   def X31 : RISCVReg<31,"x31", ["t6"]>, DwarfRegNum<[31]>;
 
-  def X32 : RISCVReg<32,"x32", ["a8"]>,  DwarfRegNum<[32]>;
-  def X33 : RISCVReg<33,"x33", ["a9"]>,  DwarfRegNum<[33]>;
-  def X34 : RISCVReg<34,"x34", ["a10"]>, DwarfRegNum<[34]>;
-  def X35 : RISCVReg<35,"x35", ["a11"]>, DwarfRegNum<[35]>;
-  def X36 : RISCVReg<36,"x36", ["a12"]>, DwarfRegNum<[36]>;
-  def X37 : RISCVReg<37,"x37", ["a13"]>, DwarfRegNum<[37]>;
-  def X38 : RISCVReg<38,"x38", ["a14"]>, DwarfRegNum<[38]>;
-  def X39 : RISCVReg<39,"x39", ["a15"]>, DwarfRegNum<[39]>;
-  def X40 : RISCVReg<40,"x40", ["a16"]>, DwarfRegNum<[40]>;
-  def X41 : RISCVReg<41,"x41", ["a17"]>, DwarfRegNum<[41]>;
-  def X42 : RISCVReg<42,"x42", ["a18"]>, DwarfRegNum<[42]>;
-  def X43 : RISCVReg<43,"x43", ["a19"]>, DwarfRegNum<[43]>;
-  def X44 : RISCVReg<44,"x44", ["a20"]>, DwarfRegNum<[44]>;
-  def X45 : RISCVReg<45,"x45", ["a21"]>, DwarfRegNum<[45]>;
-  def X46 : RISCVReg<46,"x46", ["a22"]>, DwarfRegNum<[46]>;
-  def X47 : RISCVReg<47,"x47", ["a23"]>, DwarfRegNum<[47]>;
-
-  def X48 : RISCVReg<48,"x48", ["s12"]>, DwarfRegNum<[48]>;
-  def X49 : RISCVReg<49,"x49", ["s13"]>, DwarfRegNum<[49]>;
-  def X50 : RISCVReg<50,"x50", ["s14"]>, DwarfRegNum<[50]>;
-  def X51 : RISCVReg<51,"x51", ["s15"]>, DwarfRegNum<[51]>;
-  def X52 : RISCVReg<52,"x52", ["s16"]>, DwarfRegNum<[52]>;
-  def X53 : RISCVReg<53,"x53", ["s17"]>, DwarfRegNum<[53]>;
-  def X54 : RISCVReg<54,"x54", ["s18"]>, DwarfRegNum<[54]>;
-  def X55 : RISCVReg<55,"x55", ["s19"]>, DwarfRegNum<[55]>;
-  def X56 : RISCVReg<56,"x56", ["s20"]>, DwarfRegNum<[56]>;
-  def X57 : RISCVReg<57,"x57", ["s21"]>, DwarfRegNum<[57]>;
-  def X58 : RISCVReg<58,"x58", ["s22"]>, DwarfRegNum<[58]>;
-  def X59 : RISCVReg<59,"x59", ["s23"]>, DwarfRegNum<[59]>;
-
-  def X60 : RISCVReg<60,"x60", ["s24"]>, DwarfRegNum<[60]>;
-  def X61 : RISCVReg<61,"x61", ["s25"]>, DwarfRegNum<[61]>;
-  def X62 : RISCVReg<62,"x62", ["s26"]>, DwarfRegNum<[62]>;
-  def X63 : RISCVReg<63,"x63", ["s27"]>, DwarfRegNum<[63]>;
-  def X64 : RISCVReg<64,"x64", ["s28"]>, DwarfRegNum<[64]>;
-  def X65 : RISCVReg<65,"x65", ["s29"]>, DwarfRegNum<[65]>;
-  def X66 : RISCVReg<66,"x66", ["s30"]>, DwarfRegNum<[66]>;
-  def X67 : RISCVReg<67,"x67", ["s31"]>, DwarfRegNum<[67]>;
-  def X68 : RISCVReg<68,"x68", ["s32"]>, DwarfRegNum<[68]>;
-  def X69 : RISCVReg<69,"x69", ["s33"]>, DwarfRegNum<[69]>;
-
-  def X70 : RISCVReg<70,"x70", ["s34"]>, DwarfRegNum<[70]>;
-  def X71 : RISCVReg<71,"x71", ["s35"]>, DwarfRegNum<[71]>;
-  def X72 : RISCVReg<72,"x72", ["s36"]>, DwarfRegNum<[72]>;
-  def X73 : RISCVReg<73,"x73", ["s37"]>, DwarfRegNum<[73]>;
-  def X74 : RISCVReg<74,"x74", ["s38"]>, DwarfRegNum<[74]>;
-  def X75 : RISCVReg<75,"x75", ["s39"]>, DwarfRegNum<[75]>;
-  def X76 : RISCVReg<76,"x76", ["s40"]>, DwarfRegNum<[76]>;
-  def X77 : RISCVReg<77,"x77", ["s41"]>, DwarfRegNum<[77]>;
-  def X78 : RISCVReg<78,"x78", ["s42"]>, DwarfRegNum<[78]>;
-  def X79 : RISCVReg<79,"x79", ["s43"]>, DwarfRegNum<[79]>;
-  def X80 : RISCVReg<80,"x80", ["s44"]>, DwarfRegNum<[80]>;
-  def X81 : RISCVReg<81,"x81", ["s45"]>, DwarfRegNum<[81]>;
-  def X82 : RISCVReg<82,"x82", ["s46"]>, DwarfRegNum<[82]>;
-  def X83 : RISCVReg<83,"x83", ["s47"]>, DwarfRegNum<[83]>;
-  def X84 : RISCVReg<84,"x84", ["s48"]>, DwarfRegNum<[84]>;
-  def X85 : RISCVReg<85,"x85", ["s49"]>, DwarfRegNum<[85]>;
-  def X86 : RISCVReg<86,"x86", ["s50"]>, DwarfRegNum<[86]>;
-  def X87 : RISCVReg<87,"x87", ["s51"]>, DwarfRegNum<[87]>;
-  def X88 : RISCVReg<88,"x88", ["s52"]>, DwarfRegNum<[88]>;
-  def X89 : RISCVReg<89,"x89", ["s53"]>, DwarfRegNum<[89]>;
-  def X90 : RISCVReg<90,"x90", ["s54"]>, DwarfRegNum<[90]>;
-  def X91 : RISCVReg<91,"x91", ["s55"]>, DwarfRegNum<[91]>;
-  def X92 : RISCVReg<92,"x92", ["s56"]>, DwarfRegNum<[92]>;
-  def X93 : RISCVReg<93,"x93", ["s57"]>, DwarfRegNum<[93]>;
-  def X94 : RISCVReg<94,"x94", ["s58"]>, DwarfRegNum<[94]>;
-  def X95 : RISCVReg<95,"x95", ["s59"]>, DwarfRegNum<[95]>;
-
-  def X96 : RISCVReg<96,"x96", ["t7"]> , DwarfRegNum<[96]>;
-  def X97 : RISCVReg<97,"x97", ["t8"]>,  DwarfRegNum<[97]>;
-  def X98 : RISCVReg<98,"x98", ["t9"]>,  DwarfRegNum<[98]>;
-  def X99 : RISCVReg<99,"x99", ["t10"]>, DwarfRegNum<[99]>;
-  def X100 : RISCVReg<100,"x100", ["t11"]>, DwarfRegNum<[100]>;
-  def X101 : RISCVReg<101,"x101", ["t12"]>, DwarfRegNum<[101]>;
-  def X102 : RISCVReg<102,"x102", ["t13"]>, DwarfRegNum<[102]>;
-  def X103 : RISCVReg<103,"x103", ["t14"]>, DwarfRegNum<[103]>;
-  def X104 : RISCVReg<104,"x104", ["t15"]>, DwarfRegNum<[104]>;
-  def X105 : RISCVReg<105,"x105", ["t16"]>, DwarfRegNum<[105]>;
-  def X106 : RISCVReg<106,"x106", ["t17"]>, DwarfRegNum<[106]>;
-  def X107 : RISCVReg<107,"x107", ["t18"]>, DwarfRegNum<[107]>;
-  def X108 : RISCVReg<108,"x108", ["t19"]>, DwarfRegNum<[108]>;
-  def X109 : RISCVReg<109,"x109", ["t20"]>, DwarfRegNum<[109]>;
-  def X110 : RISCVReg<110,"x110", ["t21"]>, DwarfRegNum<[110]>;
-  def X111 : RISCVReg<111,"x111", ["t22"]>, DwarfRegNum<[111]>;
-  def X112 : RISCVReg<112,"x112", ["t23"]>, DwarfRegNum<[112]>;
-  def X113 : RISCVReg<113,"x113", ["t24"]>, DwarfRegNum<[113]>;
-  def X114 : RISCVReg<114,"x114", ["t25"]>, DwarfRegNum<[114]>;
-  def X115 : RISCVReg<115,"x115", ["t26"]>, DwarfRegNum<[115]>;
-  def X116 : RISCVReg<116,"x116", ["t27"]>, DwarfRegNum<[116]>;
-  def X117 : RISCVReg<117,"x117", ["t28"]>, DwarfRegNum<[117]>;
-  def X118 : RISCVReg<118,"x118", ["t29"]>, DwarfRegNum<[118]>;
-  def X119 : RISCVReg<119,"x119", ["t30"]>, DwarfRegNum<[119]>;
-  def X120 : RISCVReg<120,"x120", ["t31"]>, DwarfRegNum<[120]>;
-  def X121 : RISCVReg<121,"x121", ["t32"]>, DwarfRegNum<[121]>;
-  def X122 : RISCVReg<122,"x122", ["t33"]>, DwarfRegNum<[122]>;
-  def X123 : RISCVReg<123,"x123", ["t34"]>, DwarfRegNum<[123]>;
-  def X124 : RISCVReg<124,"x124", ["t35"]>, DwarfRegNum<[124]>;
-  def X125 : RISCVReg<125,"x125", ["t36"]>, DwarfRegNum<[125]>;
-  def X126 : RISCVReg<126,"x126", ["t37"]>, DwarfRegNum<[126]>;
-  def X127 : RISCVReg<127,"x127", ["t38"]>, DwarfRegNum<[127]>;
   }
 }
 
@@ -227,13 +127,10 @@ def XLenRI : RegInfoByHwMode<
 // Registers are listed in the order caller-save, callee-save, specials.
 def GPR : RegisterClass<"RISCV", [XLenVT], 32, (add
     (sequence "X%u", 10, 17),  // a0-a7
-    (sequence "X%u", 32, 47),  // a8-a23
     (sequence "X%u", 5, 7),    // t0-t2
     (sequence "X%u", 28, 31),  // t3-t6
-    (sequence "X%u", 96, 127), // t7-t38
     (sequence "X%u", 8, 9),    // s0-s1
     (sequence "X%u", 18, 27),  // s2-s11
-    (sequence "X%u", 48, 95),  // s12-s59
     (sequence "X%u", 0, 4)
   )> {
   let RegInfos = XLenRI;
@@ -273,32 +170,26 @@ def GPRC : RegisterClass<"RISCV", [XLenVT], 32, (add
 def GPRTC : RegisterClass<"RISCV", [XLenVT], 32, (add
     (sequence "X%u", 6, 7),
     (sequence "X%u", 10, 17),
-    (sequence "X%u", 32, 47),  // a8-a23
-    (sequence "X%u", 28, 31),
-    (sequence "X%u", 96, 127) // t7-t38
+    (sequence "X%u", 28, 31)
   )> {
   let RegInfos = XLenRI;
 }
 
 // GPR classes for each bank (stripe) of registers (mod 4)
 def GPRB0 : RegisterClass<"RISCV", [XLenVT], 32,
-  (add X0, X4, X8, X12, X16, X20, X24, X28, X32, X36, X40, X44, X48, X52, X56, X60,
-    X64, X68, X72, X76, X80, X84, X88, X92, X96, X100, X104, X108, X112, X116, X120, X124)> {
+  (add X0, X4, X8, X12, X16, X20, X24, X28)> {
   let RegInfos = XLenRI;
 }
 def GPRB1 : RegisterClass<"RISCV", [XLenVT], 32, 
-  (add X1, X5, X9, X13, X17, X21, X25, X29, X33, X37, X41, X45, X49, X53, X57, X61,
-    X65, X69, X73, X77, X81, X85, X89, X93, X97, X101, X105, X109, X113, X117, X121, X125)> {
+  (add X1, X5, X9, X13, X17, X21, X25, X29)> {
   let RegInfos = XLenRI;
 }
 def GPRB2 : RegisterClass<"RISCV", [XLenVT], 32, 
-  (add X2, X6, X10, X14, X18, X22, X26, X30, X34, X38, X42, X46, X50, X54, X58, X62,
-    X66, X70, X74, X78, X82, X86, X90, X94, X98, X102, X106, X110, X114, X118, X122, X126)> {
+  (add X2, X6, X10, X14, X18, X22, X26, X30)> {
   let RegInfos = XLenRI;
 }
 def GPRB3 : RegisterClass<"RISCV", [XLenVT], 32, 
-  (add X3, X7, X11, X15, X19, X23, X27, X31, X35, X39, X43, X47, X51, X55, X59, X63,
-    X67, X71, X75, X79, X83, X87, X91, X95, X99, X103, X107, X111, X115, X119, X123, X127)> {
+  (add X3, X7, X11, X15, X19, X23, X27, X31)> {
   let RegInfos = XLenRI;
 }
 
@@ -340,45 +231,13 @@ let RegAltNameIndices = [ABIRegAltName] in {
   def F29_H  : RISCVReg16<29, "f29", ["ft9"]>, DwarfRegNum<[157]>;
   def F30_H  : RISCVReg16<30, "f30", ["ft10"]>, DwarfRegNum<[158]>;
   def F31_H  : RISCVReg16<31, "f31", ["ft11"]>, DwarfRegNum<[159]>;
-  def F32_H  : RISCVReg16<32, "f32", ["fa8"]>, DwarfRegNum<[160]>;
-  def F33_H  : RISCVReg16<33, "f33", ["fa9"]>, DwarfRegNum<[161]>;
-  def F34_H  : RISCVReg16<34, "f34", ["fa10"]>, DwarfRegNum<[162]>;
-  def F35_H  : RISCVReg16<35, "f35", ["fa11"]>, DwarfRegNum<[163]>;
-  def F36_H  : RISCVReg16<36, "f36", ["fa12"]>, DwarfRegNum<[164]>;
-  def F37_H  : RISCVReg16<37, "f37", ["fa13"]>, DwarfRegNum<[165]>;
-  def F38_H  : RISCVReg16<38, "f38", ["fa14"]>, DwarfRegNum<[166]>;
-  def F39_H  : RISCVReg16<39, "f39", ["fa15"]>, DwarfRegNum<[167]>;
-  def F40_H  : RISCVReg16<40, "f40", ["fs12"]>, DwarfRegNum<[168]>;
-  def F41_H  : RISCVReg16<41, "f41", ["fs13"]>, DwarfRegNum<[169]>;
-  def F42_H  : RISCVReg16<42, "f42", ["fs14"]>, DwarfRegNum<[170]>;
-  def F43_H  : RISCVReg16<43, "f43", ["fs15"]>, DwarfRegNum<[171]>;
-  def F44_H  : RISCVReg16<44, "f44", ["fs16"]>, DwarfRegNum<[172]>;
-  def F45_H  : RISCVReg16<45, "f45", ["fs17"]>, DwarfRegNum<[173]>;
-  def F46_H  : RISCVReg16<46, "f46", ["fs18"]>, DwarfRegNum<[174]>;
-  def F47_H  : RISCVReg16<47, "f47", ["fs19"]>, DwarfRegNum<[175]>;
-  def F48_H  : RISCVReg16<48, "f48", ["fs20"]>, DwarfRegNum<[176]>;
-  def F49_H  : RISCVReg16<49, "f49", ["fs21"]>, DwarfRegNum<[177]>;
-  def F50_H  : RISCVReg16<50, "f50", ["fs22"]>, DwarfRegNum<[178]>;
-  def F51_H  : RISCVReg16<51, "f51", ["fs23"]>, DwarfRegNum<[179]>;
-  def F52_H  : RISCVReg16<52, "f52", ["ft12"]>, DwarfRegNum<[180]>;
-  def F53_H  : RISCVReg16<53, "f53", ["ft13"]>, DwarfRegNum<[181]>;
-  def F54_H  : RISCVReg16<54, "f54", ["ft14"]>, DwarfRegNum<[182]>;
-  def F55_H  : RISCVReg16<55, "f55", ["ft15"]>, DwarfRegNum<[183]>;
-  def F56_H  : RISCVReg16<56, "f56", ["ft16"]>, DwarfRegNum<[184]>;
-  def F57_H  : RISCVReg16<57, "f57", ["ft17"]>, DwarfRegNum<[185]>;
-  def F58_H  : RISCVReg16<58, "f58", ["ft18"]>, DwarfRegNum<[186]>;
-  def F59_H  : RISCVReg16<59, "f59", ["ft19"]>, DwarfRegNum<[187]>;
-  def F60_H  : RISCVReg16<60, "f60", ["ft20"]>, DwarfRegNum<[188]>;
-  def F61_H  : RISCVReg16<61, "f61", ["ft21"]>, DwarfRegNum<[189]>;
-  def F62_H  : RISCVReg16<62, "f62", ["ft22"]>, DwarfRegNum<[190]>;
-  def F63_H  : RISCVReg16<63, "f63", ["ft23"]>, DwarfRegNum<[191]>;
 
-  foreach Index = 0-63 in {
+  foreach Index = 0-31 in {
     def F#Index#_F : RISCVReg32<!cast<RISCVReg16>("F"#Index#"_H")>,
       DwarfRegNum<[!add(Index, 128)]>;
   }
 
-  foreach Index = 0-63 in {
+  foreach Index = 0-31 in {
     def F#Index#_D : RISCVReg64<!cast<RISCVReg32>("F"#Index#"_F")>,
       DwarfRegNum<[!add(Index, 128)]>;
   }
@@ -390,22 +249,16 @@ def FPR16 : RegisterClass<"RISCV", [f16], 16, (add
     (sequence "F%u_H", 0, 7),   // ft0-ft7
     (sequence "F%u_H", 10, 17), // fa0-fa7
     (sequence "F%u_H", 28, 31), // ft8-ft11
-    (sequence "F%u_H", 52, 63), // ft12-ft23
-    (sequence "F%u_H", 32, 39), // fa8-fa15
     (sequence "F%u_H", 8, 9),   // fs0-fs1
-    (sequence "F%u_H", 18, 27), // fs2-fs11
-    (sequence "F%u_H", 40, 51)  // fs12-fs23
+    (sequence "F%u_H", 18, 27) // fs2-fs11
 )>;
 
 def FPR32 : RegisterClass<"RISCV", [f32], 32, (add
     (sequence "F%u_F", 0, 7),   // ft0-ft7
     (sequence "F%u_F", 10, 17), // fa0-fa7
     (sequence "F%u_F", 28, 31), // ft8-ft11
-    (sequence "F%u_F", 52, 63), // ft12-ft23
-    (sequence "F%u_F", 32, 39), // fa8-fa15
     (sequence "F%u_F", 8, 9),   // fs0-fs1
-    (sequence "F%u_F", 18, 27), // fs2-fs11
-    (sequence "F%u_F", 40, 51)  // fs12-fs23
+    (sequence "F%u_F", 18, 27) // fs2-fs11
 )>;
 
 def FPR32C : RegisterClass<"RISCV", [f32], 32, (add
@@ -419,11 +272,8 @@ def FPR64 : RegisterClass<"RISCV", [f64], 64, (add
     (sequence "F%u_D", 0, 7),
     (sequence "F%u_D", 10, 17),
     (sequence "F%u_D", 28, 31),
-    (sequence "F%u_D", 52, 63), // ft12-ft23
-    (sequence "F%u_D", 32, 39), // fa8-fa15
     (sequence "F%u_D", 8, 9),
-    (sequence "F%u_D", 18, 27),
-    (sequence "F%u_D", 40, 51)  // fs12-fs23
+    (sequence "F%u_D", 18, 27)
 )>;
 
 def FPR64C : RegisterClass<"RISCV", [f64], 64, (add
@@ -432,10 +282,10 @@ def FPR64C : RegisterClass<"RISCV", [f64], 64, (add
 )>;
 
 // FPR classes for each bank (stripe) of registers (mod 4)
-def FPRB0 : RegisterClass<"RISCV", [f32], 32, (add F0_F, F4_F, F8_F, F12_F, F16_F, F20_F, F24_F, F28_F, F32_F, F36_F, F40_F, F44_F, F48_F, F52_F, F56_F, F60_F)>;
-def FPRB1 : RegisterClass<"RISCV", [f32], 32, (add F1_F, F5_F, F9_F, F13_F, F17_F, F21_F, F25_F, F29_F, F33_F, F37_F, F41_F, F45_F, F49_F, F53_F, F57_F, F61_F)>;
-def FPRB2 : RegisterClass<"RISCV", [f32], 32, (add F2_F, F6_F, F10_F, F14_F, F18_F, F22_F, F26_F, F30_F, F34_F, F38_F, F42_F, F46_F, F50_F, F54_F, F58_F, F62_F)>;
-def FPRB3 : RegisterClass<"RISCV", [f32], 32, (add F3_F, F7_F, F11_F, F15_F, F19_F, F23_F, F27_F, F31_F, F35_F, F39_F, F43_F, F47_F, F51_F, F55_F, F59_F, F63_F)>;
+def FPRB0 : RegisterClass<"RISCV", [f32], 32, (add F0_F, F4_F, F8_F, F12_F, F16_F, F20_F, F24_F, F28_F)>;
+def FPRB1 : RegisterClass<"RISCV", [f32], 32, (add F1_F, F5_F, F9_F, F13_F, F17_F, F21_F, F25_F, F29_F)>;
+def FPRB2 : RegisterClass<"RISCV", [f32], 32, (add F2_F, F6_F, F10_F, F14_F, F18_F, F22_F, F26_F, F30_F)>;
+def FPRB3 : RegisterClass<"RISCV", [f32], 32, (add F3_F, F7_F, F11_F, F15_F, F19_F, F23_F, F27_F, F31_F)>;
 
 //===----------------------------------------------------------------------===//
 // Vector type mapping to LLVM types.
@@ -771,8 +621,8 @@ def FRM    : RISCVReg<0, "frm">;
 // or tablegen will use "untyped" to determine the size which will assert.
 let isAllocatable = 0 in
 def AnyReg : RegisterClass<"RISCV", [untyped], 32,
-                           (add (sequence "X%u", 0, 127),
-                                (sequence "F%u_D", 0, 63),
+                           (add (sequence "X%u", 0, 31),
+                                (sequence "F%u_D", 0, 31),
                                 (sequence "V%u", 0, 31))> {
   let Size = 32;
 }
