@@ -79,9 +79,9 @@ bool VirtRegMap::runOnMachineFunction(MachineFunction &mf) {
 void VirtRegMap::grow() {
   unsigned NumRegs = MF->getRegInfo().getNumVirtRegs();
   llvm::outs() << "growing virt reg map to size " << NumRegs << "\n";
-  Virt2PhysMap.resize(NumRegs * 4);
-  Virt2StackSlotMap.resize(NumRegs * 4);
-  Virt2SplitMap.resize(NumRegs * 4);
+  Virt2PhysMap.resize(NumRegs);
+  Virt2StackSlotMap.resize(NumRegs);
+  Virt2SplitMap.resize(NumRegs);
 }
 
 void VirtRegMap::assignVirt2Phys(Register virtReg, MCPhysReg physReg) {
@@ -91,7 +91,7 @@ void VirtRegMap::assignVirt2Phys(Register virtReg, MCPhysReg physReg) {
          "virtual register");
   assert(!getRegInfo().isReserved(physReg) &&
          "Attempt to map virtReg to a reserved physReg");
-  llvm::outs() << "assign virt reg " << virtReg.id() << " to phys reg " << physReg << "\n";
+  llvm::outs() << "assign virt reg " << printReg(virtReg, TRI) << " to phys reg " << printReg(physReg, TRI) << "\n";
   Virt2PhysMap[virtReg.id()] = physReg;
 }
 

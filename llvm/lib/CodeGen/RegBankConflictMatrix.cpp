@@ -61,6 +61,11 @@ SmallSet<Register, 4> RegBankConflictMatrix::getConflictingRegs(Register reg) {
     return Matrix[reg];
 }
 
+void RegBankConflictMatrix::releaseMemory() {
+   LLVM_DEBUG(dbgs() << "Releasing RegBankConflictMatrix memory\n");
+   Matrix.clear();
+}
+
 RegBankConflictMatrix::RegBankConflictMatrix() : MachineFunctionPass(ID) {}
 
 void RegBankConflictMatrix::getAnalysisUsage(AnalysisUsage &AU) const {

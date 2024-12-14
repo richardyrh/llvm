@@ -20,6 +20,7 @@ class RegBankConflictMatrix : public MachineFunctionPass {
   DenseMap<Register, SmallSet<Register, 4>> Matrix;
 
   void identifyBankConstraints(MachineFunction &MF);
+  void releaseMemory() override;
 
 public:
   static char ID;
