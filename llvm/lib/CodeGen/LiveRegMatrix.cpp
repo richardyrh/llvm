@@ -216,14 +216,16 @@ LiveRegMatrix::checkInterference(const LiveInterval &VirtReg,
 
   // Check bank conflicts
   SmallSet<Register, 4> conflictingRegs = RBCM->getConflictingRegs(VirtReg.reg());
-  LLVM_DEBUG(dbgs() << "Checking bank conflicts for reg " << printReg(VirtReg.reg(), TRI) << "\n with conflicting regs: \n");
+  LLVM_DEBUG(dbgs() << "Checking bank conflicts for assigning reg " << printReg(VirtReg.reg(), TRI) << "to " << printReg(PhysReg, TRI) << "\n with conflicting regs: \n");
   for (auto &conflictingReg : conflictingRegs) {
     assert(conflictingReg.isVirtual() && "Physical register in bank conflict set");
     LLVM_DEBUG(dbgs() << printReg(conflictingReg, TRI) << " ");
     if (Register PhysConflictReg = VRM->getPhys(conflictingReg)) {
-      LLVM_DEBUG(dbgs() << "Checking reg stripe conflict: " << RBI->getRegStripe(PhysConflictReg, *MRI, *TRI) 
-                        << " vs " << RBI->getRegStripe(PhysReg, *MRI, *TRI) << "\n");
+      LLVM_DEBUG(dbgs() << "Conflicting Virt reg " << printReg(conflictingReg, TRI) << "is assigned to PhysReg " << printReg(PhysConflictReg, TRI) << "\n");
+      LLVM_DEBUG(dbgs() << "Checking reg stripe conflict: " << RBI->getRegStripe(PhysConflictReg, *MRI, *TRI)->getName() 
+                        << " vs " << RBI->getRegStripe(PhysReg, *MRI, *TRI)->getName() << "\n");
       if (RBI->getRegStripe(PhysConflictReg, *MRI, *TRI) == RBI->getRegStripe(PhysReg, *MRI, *TRI)) {
+        LLVM_DEBUG(dbgs() << "Conflict found!\n");
         return IK_RegBank;
       }
     }

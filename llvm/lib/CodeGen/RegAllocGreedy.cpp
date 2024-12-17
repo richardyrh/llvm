@@ -395,19 +395,24 @@ MCRegister RAGreedy::tryAssign(const LiveInterval &VirtReg,
                                SmallVectorImpl<Register> &NewVRegs,
                                const SmallVirtRegSet &FixedRegisters) {
   MCRegister PhysReg;
-  for (auto I = Order.begin(), E = Order.end(); I != E && !PhysReg; ++I) {
+  bool assignedConflictFree = false;
+  LLVM_DEBUG(dbgs() << "Trying to assign to virt " << printReg(VirtReg.reg(), TRI) << '\n');
+  for (auto I = Order.begin(), E = Order.end(); I != E && !assignedConflictFree; ++I) {
     assert(*I);
-    bool assignedBankConflictFree = false;
+    assignedConflictFree = false;
     LiveRegMatrix::InterferenceKind Kind = Matrix->checkInterference(VirtReg, *I);
+    LLVM_DEBUG(dbgs() << "Trying to assign phys " << printReg(*I, TRI) << '\n');
     if ( Kind <= LiveRegMatrix::IK_RegBank) {
-      if (I.isHint())
+      if (I.isHint()) {
+        LLVM_DEBUG(dbgs() << "fuck no is this hint??" << '\n');
         return *I;
+      }
       else {
-        if (!assignedBankConflictFree)
+        if (!assignedConflictFree)
           PhysReg = *I;
         
         if (Kind == LiveRegMatrix::IK_Free)
-          assignedBankConflictFree = true;
+          assignedConflictFree = true;
       }
     }
   }
