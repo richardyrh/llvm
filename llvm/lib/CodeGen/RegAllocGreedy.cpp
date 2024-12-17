@@ -397,17 +397,17 @@ MCRegister RAGreedy::tryAssign(const LiveInterval &VirtReg,
   MCRegister PhysReg;
   for (auto I = Order.begin(), E = Order.end(); I != E && !PhysReg; ++I) {
     assert(*I);
-    bool assignedBankConflictFree = false;
+    // bool assignedBankConflictFree = false;
     LiveRegMatrix::InterferenceKind Kind = Matrix->checkInterference(VirtReg, *I);
-    if ( Kind <= LiveRegMatrix::IK_RegBank) {
+    if (!Kind) {
       if (I.isHint())
         return *I;
       else {
-        if (!assignedBankConflictFree)
+        // if (!assignedBankConflictFree)
           PhysReg = *I;
         
-        if (Kind == LiveRegMatrix::IK_Free)
-          assignedBankConflictFree = true;
+        // if (Kind == LiveRegMatrix::IK_Free)
+        //   assignedBankConflictFree = true;
       }
     }
   }
@@ -2225,7 +2225,7 @@ void RAGreedy::tryHintRecoloring(const LiveInterval &VirtReg) {
     // Check that the new color matches the register class constraints and
     // that it is free for this live range.
     if (CurrPhys != PhysReg && (!MRI->getRegClass(Reg)->contains(PhysReg) ||
-                                (Matrix->checkInterference(LI, PhysReg) <= LiveRegMatrix::IK_RegBank)))
+                                (Matrix->checkInterference(LI, PhysReg))))// <= LiveRegMatrix::IK_RegBank)))
       continue;
 
     LLVM_DEBUG(dbgs() << printReg(Reg, TRI) << '(' << printReg(CurrPhys, TRI)

@@ -93,7 +93,7 @@ public:
     /// Register bank interference. Both registers belong to the same bank and
     /// to the same instruction. Does not prevent register allocation, but should 
     /// be avoided if ever possible.
-    IK_RegBank,
+    // IK_RegBank,
 
     /// Virtual register interference. There are interfering virtual registers
     /// assigned to PhysReg or its aliases. This interference could be resolved

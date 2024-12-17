@@ -214,20 +214,20 @@ LiveRegMatrix::checkInterference(const LiveInterval &VirtReg,
   if (Interference)
     return IK_VirtReg;
 
-  // Check bank conflicts
-  SmallSet<Register, 4> conflictingRegs = RBCM->getConflictingRegs(VirtReg.reg());
-  LLVM_DEBUG(dbgs() << "Checking bank conflicts for reg " << printReg(VirtReg.reg(), TRI) << "\n with conflicting regs: \n");
-  for (auto &conflictingReg : conflictingRegs) {
-    assert(conflictingReg.isVirtual() && "Physical register in bank conflict set");
-    LLVM_DEBUG(dbgs() << printReg(conflictingReg, TRI) << " ");
-    if (Register PhysConflictReg = VRM->getPhys(conflictingReg)) {
-      LLVM_DEBUG(dbgs() << "Checking reg stripe conflict: " << RBI->getRegStripe(PhysConflictReg, *MRI, *TRI) 
-                        << " vs " << RBI->getRegStripe(PhysReg, *MRI, *TRI) << "\n");
-      if (RBI->getRegStripe(PhysConflictReg, *MRI, *TRI) == RBI->getRegStripe(PhysReg, *MRI, *TRI)) {
-        return IK_RegBank;
-      }
-    }
-  }
+  // // Check bank conflicts
+  // SmallSet<Register, 4> conflictingRegs = RBCM->getConflictingRegs(VirtReg.reg());
+  // LLVM_DEBUG(dbgs() << "Checking bank conflicts for reg " << printReg(VirtReg.reg(), TRI) << "\n with conflicting regs: \n");
+  // for (auto &conflictingReg : conflictingRegs) {
+  //   assert(conflictingReg.isVirtual() && "Physical register in bank conflict set");
+  //   LLVM_DEBUG(dbgs() << printReg(conflictingReg, TRI) << " ");
+  //   if (Register PhysConflictReg = VRM->getPhys(conflictingReg)) {
+  //     LLVM_DEBUG(dbgs() << "Checking reg stripe conflict: " << RBI->getRegStripe(PhysConflictReg, *MRI, *TRI) 
+  //                       << " vs " << RBI->getRegStripe(PhysReg, *MRI, *TRI) << "\n");
+  //     if (RBI->getRegStripe(PhysConflictReg, *MRI, *TRI) == RBI->getRegStripe(PhysReg, *MRI, *TRI)) {
+  //       return IK_RegBank;
+  //     }
+  //   }
+  // }
 
   return IK_Free;
 }
