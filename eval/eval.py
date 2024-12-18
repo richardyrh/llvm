@@ -18,13 +18,16 @@ def write_csv(results):
         for result in results:
             writer.writerow(result)
 
-def evaluate_files(file1, file2):
+def evaluate_files(file1, file2, files3):
     stats_file1 = get_statistics(parse_asm(file1))
     stats_file2 = get_statistics(parse_asm(file2))
+    stats_file3 = get_statistics(parse_asm(file3))
     print(file1 + ": ")
     print(stats_file1)
     print(file2 + ": ")
     print(stats_file2)
+    print(file3 + ": ")
+    print(stats_file3)
 
 def evaluate_all(directory):
     baseline_files = glob.glob(os.path.join(directory, "*-baseline.s"))
@@ -46,8 +49,8 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         stats = evaluate_all('./build')
         write_csv(stats)
-    elif len(sys.argv) == 3:
-        stats = evaluate_files(sys.argv[1], sys.argv[2])
+    elif len(sys.argv) == 4:
+        stats = evaluate_files(sys.argv[1], sys.argv[2], sys.argv[3])
 
 
 

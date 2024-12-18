@@ -60,13 +60,6 @@ def parse_asm(file_path):
         print(f"Error: File {file_path} not found.")
         return
 
-    # Check file extension
-    file_extension = os.path.splitext(file_path)[1]
-
-    if file_extension != '.s':
-        print("Error: Unsupported file type. Please provide a .s assembly file.")
-        return
-
     instrs = []
     try:
         with open(file_path, 'r') as file:
