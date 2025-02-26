@@ -398,7 +398,7 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
     return ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 28);
   case RISCV::fixup_riscv_pcrel_lo12_i:
     Ctx.reportError(Fixup.getLoc(), "the lower part of pcrel imms shouldnt be needed now, fix when encountered");
-    return ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 28); // I2
+    return 0; // ((Value & 0xffffff) << 36) | (((Value >> 24) & 0xff) << 28); // I2
     // return Value & 0xfff;
   case RISCV::fixup_riscv_lo12_s:
   case RISCV::fixup_riscv_pcrel_lo12_s:

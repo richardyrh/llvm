@@ -2230,7 +2230,7 @@ void RAGreedy::tryHintRecoloring(const LiveInterval &VirtReg) {
     // Check that the new color matches the register class constraints and
     // that it is free for this live range.
     if (CurrPhys != PhysReg && (!MRI->getRegClass(Reg)->contains(PhysReg) ||
-                                (Matrix->checkInterference(LI, PhysReg) <= LiveRegMatrix::IK_RegBank)))
+                                (Matrix->checkInterference(LI, PhysReg) > LiveRegMatrix::IK_RegBank)))
       continue;
 
     LLVM_DEBUG(dbgs() << printReg(Reg, TRI) << '(' << printReg(CurrPhys, TRI)
