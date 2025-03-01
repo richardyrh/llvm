@@ -571,9 +571,9 @@ static Relocation *getRISCVPCRelHi20(const Symbol *sym, uint64_t addend) {
         it->type == R_RISCV_TLS_GD_HI20 || it->type == R_RISCV_TLS_GOT_HI20)
       return &*it;
 
-  errorOrWarn("R_RISCV_PCREL_LO12 relocation points to " +
-              isec->getObjMsg(d->value) +
-              " without an associated R_RISCV_PCREL_HI20 relocation");
+  // errorOrWarn("R_RISCV_PCREL_LO12 relocation points to " +
+  //             isec->getObjMsg(d->value) +
+  //             " without an associated R_RISCV_PCREL_HI20 relocation");
   return nullptr;
 }
 

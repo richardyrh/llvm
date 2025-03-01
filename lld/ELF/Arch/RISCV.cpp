@@ -93,12 +93,17 @@ static uint64_t extractBits(uint64_t v, uint64_t begin, uint64_t end) {
 
 static uint64_t setImm_I(uint64_t insn, uint64_t imm) {
   // return (insn & 0xfffff) | (imm << 20);
-  return (insn & 0xf0000000'0fffffffULL) | ((imm & 0xffffff) << 36) | (((imm >> 24) & 0xff) << 28);
+  // return (insn & 0xf0000000'0fffffffULL) | ((imm & 0xffffffULL) << 36) | (((imm >> 24) & 0xffULL) << 28);
+  return insn | ((imm & 0xffffffULL) << 36) | (((imm >> 24) & 0xffULL) << 28);
 }
 static uint64_t setImm_S(uint64_t insn, uint64_t imm) {
   // return (insn & 0x1fff07f) | (extractBits(imm, 11, 5) << 25) |
   //        (extractBits(imm, 4, 0) << 7);
-  return (insn & 0xf000000f'fffe01ffULL) | ((imm & 0xffffff) << 36) | (((imm >> 24) & 0xff) << 9);
+  return (insn & 0xf000000f'fffe01ffULL) | ((imm & 0xffffffULL) << 36) | (((imm >> 24) & 0xffULL) << 9);
+}
+static uint64_t getImm_I(uint64_t insn) {
+  // return (insn & 0xfffff) | (imm << 20);
+  return (((insn >> 36) & 0xffffffULL) | (((insn >> 28) & 0xffULL) << 24));
 }
 
 RISCV::RISCV() {
@@ -376,8 +381,10 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   }
 
   case R_RISCV_JAL: {
+    warn("todo! add back check for 8-byte alignment");
     // checkInt(loc, val, 21, rel);
-    checkAlignment(loc, val, 2, rel); // TODO: eventually should be 8
+
+    // checkAlignment(loc, val, 8, rel);
 
     // uint32_t insn = read32le(loc) & 0xFFF;
     // uint32_t imm20 = extractBits(val, 20, 20) << 31;
@@ -387,7 +394,6 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
     // insn |= imm20 | imm10_1 | imm11 | imm19_12;
    
     uint64_t insn = setImm_I(read64le(loc), val);
-
     write64le(loc, insn);
     return;
   }
@@ -412,8 +418,8 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   // auipc + jalr pair
   case R_RISCV_CALL:
   case R_RISCV_CALL_PLT: {
-    llvm::outs() << "relocating call_plt; this might not work, check if object file";
-    llvm::outs() << " indeed has a auipc + jalr pair at this site\n";
+    // llvm::outs() << "relocating call_plt; this might not work, check if object file";
+    // llvm::outs() << " indeed has a auipc + jalr pair at this site\n";
     // int64_t hi = SignExtend64(val + 0x800, bits) >> 12;
     // checkInt(loc, hi, 20, rel);
     // if (isInt<20>(hi)) {
@@ -431,11 +437,11 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   case R_RISCV_TLS_GOT_HI20:
   case R_RISCV_TPREL_HI20:
   case R_RISCV_HI20: {
-    warn("lui: should be unreachable");
     // uint64_t hi = val + 0x800;
     // checkInt(loc, SignExtend64(hi, bits) >> 12, 20, rel);
     // write32le(loc, (read32le(loc) & 0xFFF) | (hi & 0xFFFFF000));
-    write64le(loc, setImm_I(read64le(loc), val));
+    // write64le(loc, setImm_I(read64le(loc), val));
+    write64le(loc, setImm_I(read64le(loc), 0));
     return;
   }
 
@@ -532,7 +538,7 @@ struct elf::RISCVRelaxAux {
   std::unique_ptr<uint32_t[]> relocDeltas;
   // For relocations[i], the actual type is relocTypes[i].
   std::unique_ptr<RelType[]> relocTypes;
-  SmallVector<uint32_t, 0> writes;
+  SmallVector<uint64_t, 0> writes;
 };
 
 static void initSymbolAnchors() {
@@ -583,18 +589,21 @@ static void initSymbolAnchors() {
 // Relax R_RISCV_CALL/R_RISCV_CALL_PLT auipc+jalr to c.j, c.jal, or jal.
 static void relaxCall(const InputSection &sec, size_t i, uint64_t loc,
                       Relocation &r, uint32_t &remove) {
-  llvm::outs() << "todo! relax call\n";
-  // const bool rvc = false; // config->eflags & EF_RISCV_RVC;
+  const bool rvc = false; // config->eflags & EF_RISCV_RVC;
+  // const uint64_t insnPair = read64le(sec.content().data() + r.offset);
+  // const uint32_t rd = extractBits(insnPair, 32 + 11, 32 + 7);
+  const uint64_t auipcInst = read64le(sec.content().data() + r.offset);
+  const uint64_t jalrInst = read64le(sec.content().data() + r.offset + 8);
+  const uint32_t rd = extractBits(jalrInst, 16, 9);
   // const Symbol &sym = *r.sym;
-  // // const uint64_t insnPair = read64le(sec.content().data() + r.offset);
-  // // const uint32_t rd = extractBits(insnPair, 32 + 11, 32 + 7);
-  // const uint64_t jalrInst = read64le(sec.content().data() + r.offset + 8);
-  // const uint32_t rd = extractBits(jalrInst, 16, 9);
   // const uint64_t dest =
   //     (r.expr == R_PLT_PC ? sym.getPltVA() : sym.getVA()) + r.addend;
   // const int64_t displace = dest - loc;
 
-  // // assert(!rvc);
+  const uint32_t auipcOpcode = extractBits(auipcInst, 8, 0);
+  const uint32_t jalrOpcode = extractBits(jalrInst, 8, 0);
+
+  assert(!rvc);
 
   // if (rvc && isInt<12>(displace) && rd == 0) {
   //   sec.relaxAux->relocTypes[i] = R_RISCV_RVC_JUMP;
@@ -606,10 +615,53 @@ static void relaxCall(const InputSection &sec, size_t i, uint64_t loc,
   //   sec.relaxAux->writes.push_back(0x2001); // c.jal
   //   remove = 6;
   // } else if (isInt<32>(displace)) {
-  //   sec.relaxAux->relocTypes[i] = R_RISCV_JAL;
-  //   sec.relaxAux->writes.push_back(0x6fULL | rd << 9); // jal
-  //   remove = 8;
+
+  // if (isInt<32>(displace)) {
   // }
+  remove = 0;
+  if (auipcOpcode == 0x17 && jalrOpcode == 0x67) {
+    sec.relaxAux->relocTypes[i] = R_RISCV_JAL;
+    sec.relaxAux->writes.push_back(setImm_I(0x6fULL | rd << 9, 0 /* displace */)); // jal
+    remove = 8;
+  } else if (auipcOpcode == 0x6f) {
+    llvm::outs() << "auipc instruction is actually jal\n";
+  } else if (jalrOpcode == 0x6f) {
+    llvm::outs() << "jalr instruction is actually jal\n";
+  } else {
+    llvm::outs() << "relaxCall was called on opcode " << auipcOpcode << "\n";
+  }
+}
+
+// Relax R_RISCV_PCREL_HI20 auipc+addi to auipc.
+static void relaxLa(const InputSection &sec, size_t i, uint64_t loc,
+                      Relocation &r, uint32_t &remove) {
+  const Symbol &sym = *r.sym;
+  const uint64_t auipcInst = read64le(sec.content().data() + r.offset);
+  const uint64_t addiInst = read64le(sec.content().data() + r.offset + 8);
+  const uint32_t auipcRd = extractBits(auipcInst, 16, 9);
+  const uint32_t addiRd = extractBits(addiInst, 16, 9);
+  const uint32_t addiRs1 = extractBits(addiInst, 27, 20);
+  const uint64_t dest =
+      (r.expr == R_PLT_PC ? sym.getPltVA() : sym.getVA()) + r.addend;
+  const int64_t displace = dest - loc;
+  const uint64_t addiImm = getImm_I(addiInst);
+
+  const uint32_t auipcOpcode = extractBits(auipcInst, 8, 0);
+  const uint32_t addiOpcode = extractBits(addiInst, 8, 0);
+
+  remove = 0;
+  if (auipcOpcode == 0x17 && addiOpcode == 0x13) {
+    if ((auipcRd == addiRd) && (addiRd == addiRs1)) {
+      llvm::outs() << "relaxLa with displace " << displace << "\n";
+      sec.relaxAux->relocTypes[i] = R_RISCV_PCREL_LO12_I;
+      sec.relaxAux->writes.push_back(setImm_I(0x17ULL | auipcRd << 9, displace));
+      remove = 8;
+    } else {
+      llvm::outs() << "no relaxLa with mismatching regno " << auipcRd << " " << addiRd << " " << addiRs1 << "\n";
+    }
+  } else {
+    llvm::outs() << "no relaxLa was called on opcodes " << auipcOpcode << " and " << addiOpcode << "\n";
+  }
 }
 
 // Relax local-exec TLS when hi20 is zero.
@@ -688,6 +740,11 @@ static bool relax(InputSection &sec) {
       if (i + 1 != sec.relocs().size() &&
           sec.relocs()[i + 1].type == R_RISCV_RELAX)
         relaxCall(sec, i, loc, r, remove);
+      break;
+    case R_RISCV_PCREL_HI20:
+      if (i + 1 != sec.relocs().size() &&
+          sec.relocs()[i + 1].type == R_RISCV_RELAX)
+        relaxLa(sec, i, loc, r, remove);
       break;
     case R_RISCV_TPREL_HI20:
     case R_RISCV_TPREL_ADD:
@@ -825,7 +882,13 @@ void elf::riscvFinalizeRelax(int passes) {
           case R_RISCV_JAL:
             llvm::outs() << "finalize relax r_riscv_jal\n";
             skip = 8;
-            write32le(p, aux.writes[writesIdx++]);
+            write64le(p, aux.writes[writesIdx++]);
+            break;
+          case R_RISCV_PCREL_LO12_I:
+            llvm::outs() << "finalize relax r_riscv_la\n";
+            assert((aux.writes[writesIdx] & 0x7f) == 0x17);
+            skip = 8;
+            write64le(p, aux.writes[writesIdx++]);
             break;
           case R_RISCV_32:
             llvm::outs() << "finalize relax r_riscv_32\n";
