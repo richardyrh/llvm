@@ -1393,12 +1393,6 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
 static bool matchRegisterNameHelper(bool IsRV32E, MCRegister &RegNo,
                                     StringRef Name) {
   RegNo = MatchRegisterName(Name);
-  printf("matching register name %s\n", Name.str().c_str());
-  if (RegNo == RISCV::NoRegister) {
-    printf("no match\n");
-  } else {
-    printf("match\n");
-  }
 
   // The 16-/32- and 64-bit FPRs have the same asm name. Check that the initial
   // match always matches the 64-bit variant, and not the 16/32-bit one.
@@ -2762,7 +2756,6 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
                                         OperandVector &Operands,
                                         MCStreamer &Out) {
   Inst.setLoc(IDLoc);
-  printf("hello world\n");
 
   switch (Inst.getOpcode()) {
   default:
@@ -2789,11 +2782,9 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     return false;
   }
   case RISCV::PseudoLLA:
-    printf("load local address\n");
     emitLoadLocalAddress(Inst, IDLoc, Out);
     return false;
   case RISCV::PseudoLA:
-    printf("load address\n");
     emitLoadAddress(Inst, IDLoc, Out);
     return false;
   case RISCV::PseudoLA_TLS_IE:

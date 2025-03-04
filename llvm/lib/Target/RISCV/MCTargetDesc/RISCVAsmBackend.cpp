@@ -366,7 +366,6 @@ bool RISCVAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
 
 static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
                                  MCContext &Ctx) {
-  printf("fixus riscv value 0x%lx\n", Value);
   switch (Fixup.getTargetKind()) {
   default:
     llvm_unreachable("Unknown fixup kind!");
@@ -436,7 +435,9 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
       Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
     if (Value & 0x7)
       Ctx.reportError(Fixup.getLoc(), "fixup value must be 8-byte aligned");
-    printf("fixus riscv branch with value 0x%lx\n", Value);
+#ifdef MU_DEBUG
+    printf("fixup riscv branch with value 0x%lx\n", Value);
+#endif
     // Need to extract imm[12], imm[10:5], imm[4:1], imm[11] from the 13-bit
     // Value.
     // unsigned Sbit = (Value >> 12) & 0x1;
@@ -567,7 +568,9 @@ void RISCVAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
                                  bool IsResolved,
                                  const MCSubtargetInfo *STI) const {
   MCFixupKind Kind = Fixup.getKind();
+#ifdef MU_DEBUG
   llvm::outs() << "applying fixup kind " << Kind << "\n";
+#endif
   if (Kind >= FirstLiteralRelocationKind)
     return;
   MCContext &Ctx = Asm.getContext();
@@ -575,7 +578,9 @@ void RISCVAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
   if (!Value)
     return; // Doesn't change encoding.
   // Apply any target-specific value adjustments.
+#ifdef MU_DEBUG
   llvm::outs() << "adjusting fixup value " << Value << "\n";
+#endif
   Value = adjustFixupValue(Fixup, Value, Ctx);
 
   // Shift the value into position.

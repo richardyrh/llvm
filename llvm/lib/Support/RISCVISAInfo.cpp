@@ -37,16 +37,17 @@ struct RISCVSupportedExtension {
 
 } // end anonymous namespace
 
-static constexpr StringLiteral AllStdExts = "mafdqlcbkjtpvnh";
+// static constexpr StringLiteral AllStdExts = "mafdqlcbkjtpvnh";
+static constexpr StringLiteral AllStdExts = "mfdqlbkjtpnh";
 
 static const RISCVSupportedExtension SupportedExtensions[] = {
     {"i", RISCVExtensionVersion{2, 0}},
     {"e", RISCVExtensionVersion{1, 9}},
     {"m", RISCVExtensionVersion{2, 0}},
-    {"a", RISCVExtensionVersion{2, 0}},
+    // {"a", RISCVExtensionVersion{2, 0}},
     {"f", RISCVExtensionVersion{2, 0}},
     {"d", RISCVExtensionVersion{2, 0}},
-    {"c", RISCVExtensionVersion{2, 0}},
+    // {"c", RISCVExtensionVersion{2, 0}},
 
     {"h", RISCVExtensionVersion{1, 0}},
 
@@ -81,24 +82,24 @@ static const RISCVSupportedExtension SupportedExtensions[] = {
 
     {"zmmul", RISCVExtensionVersion{1, 0}},
 
-    {"v", RISCVExtensionVersion{1, 0}},
-    {"zvl32b", RISCVExtensionVersion{1, 0}},
-    {"zvl64b", RISCVExtensionVersion{1, 0}},
-    {"zvl128b", RISCVExtensionVersion{1, 0}},
-    {"zvl256b", RISCVExtensionVersion{1, 0}},
-    {"zvl512b", RISCVExtensionVersion{1, 0}},
-    {"zvl1024b", RISCVExtensionVersion{1, 0}},
-    {"zvl2048b", RISCVExtensionVersion{1, 0}},
-    {"zvl4096b", RISCVExtensionVersion{1, 0}},
-    {"zvl8192b", RISCVExtensionVersion{1, 0}},
-    {"zvl16384b", RISCVExtensionVersion{1, 0}},
-    {"zvl32768b", RISCVExtensionVersion{1, 0}},
-    {"zvl65536b", RISCVExtensionVersion{1, 0}},
-    {"zve32x", RISCVExtensionVersion{1, 0}},
-    {"zve32f", RISCVExtensionVersion{1, 0}},
-    {"zve64x", RISCVExtensionVersion{1, 0}},
-    {"zve64f", RISCVExtensionVersion{1, 0}},
-    {"zve64d", RISCVExtensionVersion{1, 0}},
+    // {"v", RISCVExtensionVersion{1, 0}},
+    // {"zvl32b", RISCVExtensionVersion{1, 0}},
+    // {"zvl64b", RISCVExtensionVersion{1, 0}},
+    // {"zvl128b", RISCVExtensionVersion{1, 0}},
+    // {"zvl256b", RISCVExtensionVersion{1, 0}},
+    // {"zvl512b", RISCVExtensionVersion{1, 0}},
+    // {"zvl1024b", RISCVExtensionVersion{1, 0}},
+    // {"zvl2048b", RISCVExtensionVersion{1, 0}},
+    // {"zvl4096b", RISCVExtensionVersion{1, 0}},
+    // {"zvl8192b", RISCVExtensionVersion{1, 0}},
+    // {"zvl16384b", RISCVExtensionVersion{1, 0}},
+    // {"zvl32768b", RISCVExtensionVersion{1, 0}},
+    // {"zvl65536b", RISCVExtensionVersion{1, 0}},
+    // {"zve32x", RISCVExtensionVersion{1, 0}},
+    // {"zve32f", RISCVExtensionVersion{1, 0}},
+    // {"zve64x", RISCVExtensionVersion{1, 0}},
+    // {"zve64f", RISCVExtensionVersion{1, 0}},
+    // {"zve64d", RISCVExtensionVersion{1, 0}},
 
     {"zicbom", RISCVExtensionVersion{1, 0}},
     {"zicboz", RISCVExtensionVersion{1, 0}},

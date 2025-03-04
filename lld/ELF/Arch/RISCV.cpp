@@ -871,7 +871,9 @@ void elf::riscvFinalizeRelax(int passes) {
         } else if (RelType newType = aux.relocTypes[i]) {
           switch (newType) {
           case R_RISCV_RELAX:
+#ifdef MU_DEBUG
             llvm::outs() << "finalize relax r_riscv_relax\n";
+#endif
             // Used by relaxTlsLe to indicate the relocation is ignored.
             break;
           case R_RISCV_RVC_JUMP:
@@ -880,12 +882,16 @@ void elf::riscvFinalizeRelax(int passes) {
             write16le(p, aux.writes[writesIdx++]);
             break;
           case R_RISCV_JAL:
+#ifdef MU_DEBUG
             llvm::outs() << "finalize relax r_riscv_jal\n";
+#endif
             skip = 8;
             write64le(p, aux.writes[writesIdx++]);
             break;
           case R_RISCV_PCREL_LO12_I:
+#ifdef MU_DEBUG
             llvm::outs() << "finalize relax r_riscv_la\n";
+#endif
             assert((aux.writes[writesIdx] & 0x7f) == 0x17);
             skip = 8;
             write64le(p, aux.writes[writesIdx++]);
