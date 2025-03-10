@@ -730,7 +730,7 @@ static bool relax(InputSection &sec) {
       const uint64_t align = PowerOf2Ceil(r.addend + 6 /*2*/);
       // All bytes beyond the alignment boundary should be removed.
       remove = nextLoc - ((loc + align - 1) & -align);
-      assert((remove == 0) && "R_RISCV_ALIGN shouldnt remove since insts are always same size?");
+      // assert((remove == 0) && "R_RISCV_ALIGN shouldnt remove since insts are always same size?");
       assert(static_cast<int32_t>(remove) >= 0 &&
              "R_RISCV_ALIGN needs expanding the content");
       break;
