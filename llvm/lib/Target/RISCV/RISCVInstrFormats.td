@@ -430,9 +430,9 @@ class RVInstI2Shift<bits<5> imm11_7, bits<3> funct3, bits<2> ext2, RISCVOpcode o
   bits<8> rd;
 
   let Inst{63-60} = 0; // pred;
-  let Inst{59-48} = 0; // imm23_12
-  let Inst{47-43} = imm11_7;
-  let Inst{42} = 0; // imm6
+  let Inst{59} = 0; // resv
+  let Inst{58-54} = imm11_7; // funct7[6:2]
+  let Inst{53-42} = 0;
   let Inst{41-36} = shamt; // imm5_0
   let Inst{35-28} = 0; // imm31_24
   let Inst{27-20} = rs1;
@@ -451,8 +451,9 @@ class RVInstI2ShiftW<bits<7> imm11_5, bits<3> funct3, bits<2> ext2, RISCVOpcode 
   bits<8> rd;
 
   let Inst{63-60} = 0; // pred;
-  let Inst{59-48} = 0; // imm23_12
-  let Inst{47-41} = imm11_5;
+  let Inst{59} = 0; // resv
+  let Inst{58-52} = imm11_5; // funct7
+  let Inst{51-41} = 0;
   let Inst{40-36} = shamt; // imm4_0
   let Inst{35-28} = 0; // imm31_24
   let Inst{27-20} = rs1;
