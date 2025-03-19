@@ -486,9 +486,9 @@ public:
   static bool classof(const Symbol *s) { return s->kind() == UndefinedTagKind; }
 };
 
-// LazySymbol represents a symbol that is not yet in the link, but we know where
-// to find it if needed. If the resolver finds both Undefined and Lazy for the
-// same name, it will ask the Lazy to load a file.
+// LazySymbol symbols represent symbols in object files between --start-lib and
+// --end-lib options. LLD also handles traditional archives as if all the files
+// in the archive are surrounded by --start-lib and --end-lib.
 //
 // A special complication is the handling of weak undefined symbols. They should
 // not load a file, but we have to remember we have seen both the weak undefined
@@ -497,14 +497,12 @@ public:
 // symbols into consideration.
 class LazySymbol : public Symbol {
 public:
-  LazySymbol(StringRef name, uint32_t flags, InputFile *file,
-             const llvm::object::Archive::Symbol &sym)
-      : Symbol(name, LazyKind, flags, file), archiveSymbol(sym) {}
+  LazySymbol(StringRef name, uint32_t flags, InputFile *file)
+      : Symbol(name, LazyKind, flags, file) {}
 
   static bool classof(const Symbol *s) { return s->kind() == LazyKind; }
-  void fetch();
+  void extract();
   void setWeak();
-  MemoryBufferRef getMemberBuffer();
 
   // Lazy symbols can have a signature because they can replace an
   // UndefinedFunction in which case we need to be able to preserve the
@@ -512,9 +510,6 @@ public:
   // TODO(sbc): This repetition of the signature field is inelegant.  Revisit
   // the use of class hierarchy to represent symbol taxonomy.
   const WasmSignature *signature = nullptr;
-
-private:
-  llvm::object::Archive::Symbol archiveSymbol;
 };
 
 // linker-generated symbols
@@ -581,6 +576,11 @@ struct WasmSym {
   // Function that applies relocations to wasm globals post-instantiation.
   // Unlike __wasm_apply_data_relocs this needs to run on every thread.
   static DefinedFunction *applyGlobalRelocs;
+
+  // __wasm_apply_tls_relocs
+  // Like applyDataRelocs but for TLS section.  These must be delayed until
+  // __wasm_init_tls.
+  static DefinedFunction *applyTLSRelocs;
 
   // __wasm_apply_global_tls_relocs
   // Like applyGlobalRelocs but for globals that hold TLS addresses.  These

@@ -1,4 +1,4 @@
-//===-- RISCVInstrFormatsV.td - RISCV V Instruction Formats --*- tablegen -*-=//
+//===-- RISCVInstrFormatsV.td - RISC-V V Instruction Formats -*- tablegen -*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -68,7 +68,7 @@ class RVInstSetiVLi<dag outs, dag ins, string opcodestr, string argstr>
   let Inst{19-15} = uimm;
   let Inst{14-12} = OPCFG.Value;
   let Inst{11-7} = rd;
-  let Opcode = OPC_OP_V.Value;
+  let Inst{6-0} = OPC_OP_V.Value;
 
   let Defs = [VTYPE, VL];
 }
@@ -84,7 +84,7 @@ class RVInstSetVLi<dag outs, dag ins, string opcodestr, string argstr>
   let Inst{19-15} = rs1;
   let Inst{14-12} = OPCFG.Value;
   let Inst{11-7} = rd;
-  let Opcode = OPC_OP_V.Value;
+  let Inst{6-0} = OPC_OP_V.Value;
 
   let Defs = [VTYPE, VL];
 }
@@ -101,7 +101,7 @@ class RVInstSetVL<dag outs, dag ins, string opcodestr, string argstr>
   let Inst{19-15} = rs1;
   let Inst{14-12} = OPCFG.Value;
   let Inst{11-7} = rd;
-  let Opcode = OPC_OP_V.Value;
+  let Inst{6-0} = OPC_OP_V.Value;
 
   let Defs = [VTYPE, VL];
 }
@@ -120,7 +120,7 @@ class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
   let Inst{19-15} = vs1;
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
-  let Opcode = OPC_OP_V.Value;
+  let Inst{6-0} = OPC_OP_V.Value;
 
   let Uses = [VTYPE, VL];
   let RVVConstraint = VMConstraint;
@@ -140,7 +140,7 @@ class RVInstVX<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
   let Inst{19-15} = rs1;
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
-  let Opcode = OPC_OP_V.Value;
+  let Inst{6-0} = OPC_OP_V.Value;
 
   let Uses = [VTYPE, VL];
   let RVVConstraint = VMConstraint;
@@ -159,7 +159,7 @@ class RVInstV2<bits<6> funct6, bits<5> vs2, RISCVVFormat opv, dag outs, dag ins,
   let Inst{19-15} = rs1;
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
-  let Opcode = OPC_OP_V.Value;
+  let Inst{6-0} = OPC_OP_V.Value;
 
   let Uses = [VTYPE, VL];
   let RVVConstraint = VMConstraint;
@@ -179,7 +179,7 @@ class RVInstIVI<bits<6> funct6, dag outs, dag ins, string opcodestr,
   let Inst{19-15} = imm;
   let Inst{14-12} = OPIVI.Value;
   let Inst{11-7} = vd;
-  let Opcode = OPC_OP_V.Value;
+  let Inst{6-0} = OPC_OP_V.Value;
 
   let Uses = [VTYPE, VL];
   let RVVConstraint = VMConstraint;
@@ -198,7 +198,7 @@ class RVInstV<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, dag outs,
   let Inst{19-15} = vs1;
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
-  let Opcode = OPC_OP_V.Value;
+  let Inst{6-0} = OPC_OP_V.Value;
 
   let Uses = [VTYPE, VL];
   let RVVConstraint = VMConstraint;
@@ -220,7 +220,7 @@ class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,
   let Inst{19-15} = rs1;
   let Inst{14-12} = width;
   let Inst{11-7} = vd;
-  let Opcode = OPC_LOAD_FP.Value;
+  let Inst{6-0} = OPC_LOAD_FP.Value;
 
   let Uses = [VTYPE, VL];
   let RVVConstraint = VMConstraint;
@@ -242,7 +242,7 @@ class RVInstVLS<bits<3> nf, bit mew, bits<3> width,
   let Inst{19-15} = rs1;
   let Inst{14-12} = width;
   let Inst{11-7} = vd;
-  let Opcode = OPC_LOAD_FP.Value;
+  let Inst{6-0} = OPC_LOAD_FP.Value;
 
   let Uses = [VTYPE, VL];
   let RVVConstraint = VMConstraint;
@@ -264,7 +264,7 @@ class RVInstVLX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
   let Inst{19-15} = rs1;
   let Inst{14-12} = width;
   let Inst{11-7} = vd;
-  let Opcode = OPC_LOAD_FP.Value;
+  let Inst{6-0} = OPC_LOAD_FP.Value;
 
   let Uses = [VTYPE, VL];
   let RVVConstraint = VMConstraint;
@@ -286,7 +286,7 @@ class RVInstVSU<bits<3> nf, bit mew, RISCVLSUMOP sumop,
   let Inst{19-15} = rs1;
   let Inst{14-12} = width;
   let Inst{11-7} = vs3;
-  let Opcode = OPC_STORE_FP.Value;
+  let Inst{6-0} = OPC_STORE_FP.Value;
 
   let Uses = [VTYPE, VL];
 }
@@ -307,7 +307,7 @@ class RVInstVSS<bits<3> nf, bit mew, bits<3> width,
   let Inst{19-15} = rs1;
   let Inst{14-12} = width;
   let Inst{11-7} = vs3;
-  let Opcode = OPC_STORE_FP.Value;
+  let Inst{6-0} = OPC_STORE_FP.Value;
 
   let Uses = [VTYPE, VL];
 }
@@ -328,7 +328,7 @@ class RVInstVSX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
   let Inst{19-15} = rs1;
   let Inst{14-12} = width;
   let Inst{11-7} = vs3;
-  let Opcode = OPC_STORE_FP.Value;
+  let Inst{6-0} = OPC_STORE_FP.Value;
 
   let Uses = [VTYPE, VL];
 }

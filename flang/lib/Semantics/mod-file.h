@@ -52,11 +52,13 @@ private:
   llvm::raw_string_ostream decls_{declsBuf_};
   llvm::raw_string_ostream contains_{containsBuf_};
   bool isSubmodule_{false};
+  std::map<const Symbol *, SourceName> renamings_;
 
   void WriteAll(const Scope &);
   void WriteOne(const Scope &);
   void Write(const Symbol &);
   std::string GetAsString(const Symbol &);
+  void PrepareRenamings(const Scope &);
   void PutSymbols(const Scope &);
   // Returns true if a derived type with bindings and "contains" was emitted
   bool PutComponents(const Symbol &);
@@ -74,8 +76,9 @@ private:
   void PutUse(const Symbol &);
   void PutUseExtraAttr(Attr, const Symbol &, const Symbol &);
   llvm::raw_ostream &PutAttrs(llvm::raw_ostream &, Attrs,
-      const std::string * = nullptr, std::string before = ","s,
+      const std::string * = nullptr, bool = false, std::string before = ","s,
       std::string after = ""s) const;
+  void PutDirective(llvm::raw_ostream &, const Symbol &);
 };
 
 class ModFileReader {

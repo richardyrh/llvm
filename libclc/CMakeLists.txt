@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13.4)
+cmake_minimum_required(VERSION 3.20.0)
 
 project( libclc VERSION 0.2.0 LANGUAGES CXX C)
 
@@ -114,7 +114,9 @@ include_directories( ${LLVM_INCLUDE_DIRS} )
 set(LLVM_LINK_COMPONENTS
   BitReader
   BitWriter
+  IRReader
   Core
+  Support
 )
 add_llvm_executable( prepare_builtins utils/prepare-builtins.cpp )
 target_compile_definitions( prepare_builtins PRIVATE ${LLVM_VERSION_DEFINE} )
@@ -141,17 +143,15 @@ set( cypress_aliases hemlock )
 set( barts_aliases turks caicos )
 set( cayman_aliases aruba )
 set( tahiti_aliases pitcairn verde oland hainan bonaire kabini kaveri hawaii
-	mullins tonga iceland carrizo fiji stoney polaris10 polaris11 )
-
-# Support for gfx9 was added in LLVM 5.0 (r295554)
-if( ${LLVM_PACKAGE_VERSION} VERSION_GREATER "4.99.99" )
-	set( tahiti_aliases ${tahiti_aliases} gfx900 gfx902 )
-endif()
-
-# Support for Vega12 and Vega20 was added in LLVM 7 (r331215)
-if( ${LLVM_PACKAGE_VERSION} VERSION_GREATER "6.99.99" )
-	set( tahiti_aliases ${tahiti_aliases} gfx904 gfx906 )
-endif()
+	mullins tonga tongapro iceland carrizo fiji stoney polaris10 polaris11
+	gfx602 gfx705 gfx805
+	gfx900 gfx902 gfx904 gfx906 gfx908 gfx909 gfx90a gfx90c gfx940 gfx941 gfx942
+	gfx1010 gfx1011 gfx1012 gfx1013
+	gfx1030 gfx1031 gfx1032 gfx1033 gfx1034 gfx1035 gfx1036
+	gfx1100 gfx1101 gfx1102 gfx1103
+	gfx1150 gfx1151
+	gfx1200 gfx1201
+)
 
 # pkg-config file
 configure_file( libclc.pc.in libclc.pc @ONLY )
@@ -218,11 +218,11 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 
 	# Add the generated convert.cl here to prevent adding
 	# the one listed in SOURCES
-	if( NOT ${ARCH} STREQUAL "spirv" AND NOT ${ARCH} STREQUAL "spirv64" AND
-			NOT ${ARCH} STREQUAL "clspv" AND NOT ${ARCH} STREQUAL "clspv64" )
+	if( NOT ${ARCH} STREQUAL "spirv" AND NOT ${ARCH} STREQUAL "spirv64" )
 		set( rel_files convert.cl )
 		set( objects convert.cl )
-		if( NOT ENABLE_RUNTIME_SUBNORMAL )
+		if( NOT ENABLE_RUNTIME_SUBNORMAL AND NOT ${ARCH} STREQUAL "clspv" AND
+		    NOT ${ARCH} STREQUAL "clspv64" )
 			list( APPEND rel_files generic/lib/subnormal_use_default.ll )
 		endif()
 	else()
@@ -271,11 +271,11 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 			set( spvflags --spirv-max-version=1.1 )
 		elseif( ${ARCH} STREQUAL "clspv" )
 			set( t "spir--" )
-			set( build_flags )
+			set( build_flags "-Wno-unknown-assumption")
 			set( opt_flags -O3 )
 		elseif( ${ARCH} STREQUAL "clspv64" )
 			set( t "spir64--" )
-			set( build_flags )
+			set( build_flags "-Wno-unknown-assumption")
 			set( opt_flags -O3 )
 		else()
 			set( build_flags )

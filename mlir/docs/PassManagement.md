@@ -17,22 +17,26 @@ this is a great place to start.
 
 In MLIR, the main unit of abstraction and transformation is an
 [operation](LangRef.md/#operations). As such, the pass manager is designed to
-work on instances of operations at different levels of nesting. The structure of
-the [pass manager](#pass-manager), and the concept of nesting, is detailed
-further below. All passes in MLIR derive from `OperationPass` and adhere to the
-following restrictions; any noncompliance will lead to problematic behavior in
-multithreaded and other advanced scenarios:
+work on instances of operations at different levels of nesting. In the following
+paragraphs, we refer to the operation that a pass operates on as the "current
+operation".
 
-*   Must not modify any state referenced or relied upon outside the current
-    operation being operated on. This includes adding or removing operations
-    from the parent block, changing the attributes(depending on the contract
-    of the current operation)/operands/results/successors of the current operation.
-*   Must not modify the state of another operation not nested within the current
-    operation being operated on.
-    *   Other threads may be operating on these operations simultaneously.
-*   Must not inspect the state of sibling operations.
+The structure of the [pass manager](#pass-manager), and the concept of nesting,
+is detailed further below. All passes in MLIR derive from `OperationPass` and
+adhere to the following restrictions; any noncompliance will lead to problematic
+behavior in multithreaded and other advanced scenarios:
+
+*   Must not inspect the state of operations that are siblings of the current
+    operation. Must neither access operations nested under those siblings.
     *   Other threads may be modifying these operations in parallel.
     *   Inspecting the state of ancestor/parent operations is permitted.
+*   Must not modify the state of operations other than the operations that are
+    nested under the current operation. This includes adding, modifying or
+    removing other operations from an ancestor/parent block.
+    *   Other threads may be operating on these operations simultaneously.
+    *   As an exception, the attributes of the current operation may be modified
+        freely. This is the only way that the current operation may be modified.
+        (I.e., modifying operands, etc. is not allowed.)
 *   Must not maintain mutable pass state across invocations of `runOnOperation`.
     A pass may be run on many different operations with no guarantee of
     execution order.
@@ -399,11 +403,8 @@ Below is an example of constructing a pipeline that operates on the above
 structure:
 
 ```c++
-// Create a top-level `PassManager` class. If an operation type is not
-// explicitly specific, the default is the builtin `module` operation.
-PassManager pm(ctx);
-// Note: We could also create the above `PassManager` this way.
-PassManager pm(ctx, /*operationName=*/"builtin.module");
+// Create a top-level `PassManager` class.
+auto pm = PassManager::on<ModuleOp>(ctx);
 
 // Add a pass on the top-level module operation.
 pm.addPass(std::make_unique<MyModulePass>());
@@ -461,7 +462,7 @@ program has been run through the passes. This provides several benefits:
 In some situations it may be useful to run a pass pipeline within another pass,
 to allow configuring or filtering based on some invariants of the current
 operation being operated on. For example, the
-[Inliner Pass](Passes.md/#-inline-inline-function-calls) may want to run
+[Inliner Pass](Passes.md/#-inline) may want to run
 intraprocedural simplification passes while it is inlining to produce a better
 cost model, and provide more optimal inlining. To enable this, passes may run an
 arbitrary `OpPassManager` on the current operation being operated on or any
@@ -1336,9 +1337,9 @@ module {
 #-}
 ```
 
-The configuration dumped can be passed to `mlir-opt`. This will result in
-parsing the configuration of the reproducer and adjusting the necessary opt
-state, e.g. configuring the pass manager, context, etc.
+The configuration dumped can be passed to `mlir-opt` by specifying
+`-run-reproducer` flag. This will result in parsing the configuration of the reproducer
+and adjusting the necessary opt state, e.g. configuring the pass manager, context, etc.
 
 Beyond specifying a filename, one can also register a `ReproducerStreamFactory`
 function that would be invoked in the case of a crash and the reproducer written

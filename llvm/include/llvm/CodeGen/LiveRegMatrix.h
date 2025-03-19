@@ -41,11 +41,11 @@ class TargetRegisterInfo;
 class VirtRegMap;
 
 class LiveRegMatrix : public MachineFunctionPass {
-  const TargetRegisterInfo *TRI;
+  const TargetRegisterInfo *TRI = nullptr;
   MachineRegisterInfo *MRI;
   const RegisterBankInfo *RBI;
-  LiveIntervals *LIS;
-  VirtRegMap *VRM;
+  LiveIntervals *LIS = nullptr;
+  VirtRegMap *VRM = nullptr;
   RegBankConflictMatrix *RBCM;
 
   // UserTag changes whenever virtual registers have been modified.

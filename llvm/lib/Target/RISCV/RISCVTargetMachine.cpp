@@ -1,4 +1,4 @@
-//===-- RISCVTargetMachine.cpp - Define TargetMachine for RISCV -----------===//
+//===-- RISCVTargetMachine.cpp - Define TargetMachine for RISC-V ----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Implements the info about RISCV target spec.
+// Implements the info about RISC-V target spec.
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,7 +14,6 @@
 #include "MCTargetDesc/RISCVBaseInfo.h"
 #include "RISCV.h"
 #include "RISCVMachineFunctionInfo.h"
-#include "RISCVMacroFusion.h"
 #include "RISCVTargetObjectFile.h"
 #include "RISCVTargetTransformInfo.h"
 #include "TargetInfo/RISCVTargetInfo.h"
@@ -26,18 +25,21 @@
 #include "llvm/CodeGen/GlobalISel/RegBankSelect.h"
 #include "llvm/CodeGen/MIRParser/MIParser.h"
 #include "llvm/CodeGen/MIRYamlMapping.h"
+#include "llvm/CodeGen/MachineScheduler.h"
+#include "llvm/CodeGen/MacroFusion.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Utils.h"
-#include "llvm/Transforms/Scalar/Scalarizer.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "VortexBranchDivergence.h"
 #include <optional>
 using namespace llvm;
 
@@ -46,10 +48,19 @@ static cl::opt<bool> EnableRedundantCopyElimination(
     cl::desc("Enable the redundant copy elimination pass"), cl::init(true),
     cl::Hidden);
 
-static cl::opt<int> EnableVortexBranchDivergence(
+// 0: Disable Vortex Branch Divergence
+// 1: Enable Vortex Branch Divergence with only non-regional-only divergent branches structurized first
+// 2: Enable Vortex Branch Divergence with all divergent branches structurized first
+static cl::opt<int> VortexBranchDivergenceMode(
   "vortex-branch-divergence",
-  cl::desc("Enable Branch Divergence Instrumentation"),
+  cl::desc("Set Vortex Branch Divergence Mode"),
   cl::init(1));
+int gVortexBranchDivergenceMode = 0;
+
+static cl::opt<int> VortexKernelSchedulerMode(
+  "vortex-kernel-scheduler",
+  cl::desc("Set Vortex Kernel Scheduler Mode"),
+  cl::init(0));
 
 // FIXME: Unify control over GlobalMerge.
 static cl::opt<cl::boolOrDefault>
@@ -75,32 +86,88 @@ static cl::opt<int> RVVVectorBitsMinOpt(
              "autovectorization with fixed width vectors."),
     cl::init(-1), cl::Hidden);
 
+static cl::opt<bool> EnableRISCVCopyPropagation(
+    "riscv-enable-copy-propagation",
+    cl::desc("Enable the copy propagation with RISC-V copy instr"),
+    cl::init(true), cl::Hidden);
+
+static cl::opt<bool> EnableRISCVDeadRegisterElimination(
+    "riscv-enable-dead-defs", cl::Hidden,
+    cl::desc("Enable the pass that removes dead"
+             " definitons and replaces stores to"
+             " them with stores to x0"),
+    cl::init(true));
+
+static cl::opt<bool>
+    EnableSinkFold("riscv-enable-sink-fold",
+                   cl::desc("Enable sinking and folding of instruction copies"),
+                   cl::init(false), cl::Hidden);
+
+static cl::opt<bool>
+    EnableLoopDataPrefetch("riscv-enable-loop-data-prefetch", cl::Hidden,
+                           cl::desc("Enable the loop data prefetch pass"),
+                           cl::init(true));
+
+static cl::opt<bool>
+    EnableSplitRegAlloc("riscv-split-regalloc", cl::Hidden,
+                        cl::desc("Enable Split RegisterAlloc for RVV"),
+                        cl::init(true));
+
+static cl::opt<bool> EnableMISchedLoadClustering(
+    "riscv-misched-load-clustering", cl::Hidden,
+    cl::desc("Enable load clustering in the machine scheduler"),
+    cl::init(false));
+
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
   RegisterTargetMachine<RISCVTargetMachine> Y(getTheRISCV64Target());
   auto *PR = PassRegistry::getPassRegistry();
   initializeGlobalISel(*PR);
+  initializeRISCVO0PreLegalizerCombinerPass(*PR);
+  initializeRISCVPreLegalizerCombinerPass(*PR);
+  initializeRISCVPostLegalizerCombinerPass(*PR);
+  initializeKCFIPass(*PR);
+  if (VortexBranchDivergenceMode != 0) {
+    initializeVortexBranchDivergence0Pass(*PR);
+    initializeVortexBranchDivergence1Pass(*PR);
+    initializeVortexBranchDivergence2Pass(*PR);
+  }
+  if (VortexKernelSchedulerMode != 0) {
+    initializeVortexIntrinsicFuncLoweringPass(*PR);
+  }
+  initializeRISCVDeadRegisterDefinitionsPass(*PR);
   initializeRISCVMakeCompressibleOptPass(*PR);
   initializeRISCVGatherScatterLoweringPass(*PR);
   initializeRISCVCodeGenPreparePass(*PR);
+  initializeRISCVPostRAExpandPseudoPass(*PR);
   initializeRISCVMergeBaseOffsetOptPass(*PR);
-  initializeRISCVSExtWRemovalPass(*PR);
-  initializeRISCVStripWSuffixPass(*PR);
+  initializeRISCVOptWInstrsPass(*PR);
   initializeRISCVPreRAExpandPseudoPass(*PR);
   initializeRISCVExpandPseudoPass(*PR);
+  initializeRISCVFoldMasksPass(*PR);
   initializeRISCVInsertVSETVLIPass(*PR);
+  initializeRISCVInsertReadWriteCSRPass(*PR);
+  initializeRISCVInsertWriteVXRMPass(*PR);
   initializeRISCVDAGToDAGISelPass(*PR);
-  if (EnableVortexBranchDivergence != 0) {
-    initializeVortexBranchDivergence0Pass(*PR);
-    initializeVortexBranchDivergence1Pass(*PR);
-  }
-  initializeVortexIntrinsicFuncLoweringPass(*PR);
+  initializeRISCVInitUndefPass(*PR);
+  initializeRISCVMoveMergePass(*PR);
+  initializeRISCVPushPopOptPass(*PR);
 }
 
-static StringRef computeDataLayout(const Triple &TT) {
-  if (TT.isArch64Bit())
+static StringRef computeDataLayout(const Triple &TT,
+                                   const TargetOptions &Options) {
+  StringRef ABIName = Options.MCOptions.getABIName();
+  if (TT.isArch64Bit()) {
+    if (ABIName == "lp64e")
+      return "e-m:e-p:64:64-i64:64-i128:128-n32:64-S64";
+
     return "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128";
+  }
   assert(TT.isArch32Bit() && "only RV32 and RV64 are currently supported");
+
+  if (ABIName == "ilp32e")
+    return "e-m:e-p:32:32-i64:64-n32-S32";
+
   return "e-m:e-p:32:32-i64:64-n32-S128";
 }
 
@@ -114,8 +181,8 @@ RISCVTargetMachine::RISCVTargetMachine(const Target &T, const Triple &TT,
                                        const TargetOptions &Options,
                                        std::optional<Reloc::Model> RM,
                                        std::optional<CodeModel::Model> CM,
-                                       CodeGenOpt::Level OL, bool JIT)
-    : LLVMTargetMachine(T, computeDataLayout(TT), TT, CPU, FS, Options,
+                                       CodeGenOptLevel OL, bool JIT)
+    : LLVMTargetMachine(T, computeDataLayout(TT, Options), TT, CPU, FS, Options,
                         getEffectiveRelocModel(TT, RM),
                         getEffectiveCodeModel(CM, CodeModel::Small), OL),
       TLOF(std::make_unique<RISCVELFTargetObjectFile>()) {
@@ -124,8 +191,15 @@ RISCVTargetMachine::RISCVTargetMachine(const Target &T, const Triple &TT,
   // RISC-V supports the MachineOutliner.
   setMachineOutliner(true);
   setSupportsDefaultOutlining(true);
-  // Detect Vortex extension
-  isVortex_ = FS.contains("vortex");
+
+  if (FS.contains("+vortex")
+   && VortexBranchDivergenceMode != 0) {
+   gVortexBranchDivergenceMode = VortexBranchDivergenceMode;
+   setRequiresStructuredCFG(true);
+  }
+
+  if (TT.isOSFuchsia() && !TT.isArch64Bit())
+    report_fatal_error("Fuchsia is only supported for 64-bit");
 }
 
 const RISCVSubtarget *
@@ -174,20 +248,15 @@ RISCVTargetMachine::getSubtargetImpl(const Function &F) const {
       RVVBitsMax = std::max(RVVBitsMin, RVVBitsMax);
     }
 
-    RVVBitsMin =
-        PowerOf2Floor((RVVBitsMin < 64 || RVVBitsMin > 65536) ? 0 : RVVBitsMin);
+    RVVBitsMin = llvm::bit_floor(
+        (RVVBitsMin < 64 || RVVBitsMin > 65536) ? 0 : RVVBitsMin);
   }
   RVVBitsMax =
-      PowerOf2Floor((RVVBitsMax < 64 || RVVBitsMax > 65536) ? 0 : RVVBitsMax);
+      llvm::bit_floor((RVVBitsMax < 64 || RVVBitsMax > 65536) ? 0 : RVVBitsMax);
 
   SmallString<512> Key;
-  Key += "RVVMin";
-  Key += std::to_string(RVVBitsMin);
-  Key += "RVVMax";
-  Key += std::to_string(RVVBitsMax);
-  Key += CPU;
-  Key += TuneCPU;
-  Key += FS;
+  raw_svector_ostream(Key) << "RVVMin" << RVVBitsMin << "RVVMax" << RVVBitsMax
+                           << CPU << TuneCPU << FS;
   auto &I = SubtargetMap[Key];
   if (!I) {
     // This needs to be done before we create a new subtarget since any
@@ -200,7 +269,7 @@ RISCVTargetMachine::getSubtargetImpl(const Function &F) const {
       auto TargetABI = RISCVABI::getTargetABI(ABIName);
       if (TargetABI != RISCVABI::ABI_Unknown &&
           ModuleTargetABI->getString() != ABIName) {
-        report_fatal_error("-target-abi option != target-abi module flag");
+        report_fatal_error("-target-abi option != target-abi module flag: " + ModuleTargetABI->getString() + " vs " + ABIName);
       }
       ABIName = ModuleTargetABI->getString();
     }
@@ -231,11 +300,98 @@ bool RISCVTargetMachine::isNoopAddrSpaceCast(unsigned SrcAS,
   return true;
 }
 
+void RISCVTargetMachine::registerPassBuilderCallbacks(
+    PassBuilder &PB, bool PopulateClassToPassNames) {
+  if (gVortexBranchDivergenceMode != 0) {
+    PB.registerPipelineStartEPCallback(
+      [this](ModulePassManager &PM, OptimizationLevel Level) {
+        FunctionPassManager FPM;
+        FPM.addPass(vortex::UniformAnnotationPass());
+        PM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+      });
+
+  }
+}
+
 namespace {
+
+class RVVRegisterRegAlloc : public RegisterRegAllocBase<RVVRegisterRegAlloc> {
+public:
+  RVVRegisterRegAlloc(const char *N, const char *D, FunctionPassCtor C)
+      : RegisterRegAllocBase(N, D, C) {}
+};
+
+static bool onlyAllocateRVVReg(const TargetRegisterInfo &TRI,
+                               const TargetRegisterClass &RC) {
+  return RISCV::VRRegClass.hasSubClassEq(&RC) ||
+         RISCV::VRM2RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRM4RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRM8RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN2M1RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN2M2RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN2M4RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN3M1RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN3M2RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN4M1RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN4M2RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN5M1RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN6M1RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN7M1RegClass.hasSubClassEq(&RC) ||
+         RISCV::VRN8M1RegClass.hasSubClassEq(&RC);
+}
+
+static FunctionPass *useDefaultRegisterAllocator() { return nullptr; }
+
+static llvm::once_flag InitializeDefaultRVVRegisterAllocatorFlag;
+
+/// -riscv-rvv-regalloc=<fast|basic|greedy> command line option.
+/// This option could designate the rvv register allocator only.
+/// For example: -riscv-rvv-regalloc=basic
+static cl::opt<RVVRegisterRegAlloc::FunctionPassCtor, false,
+               RegisterPassParser<RVVRegisterRegAlloc>>
+    RVVRegAlloc("riscv-rvv-regalloc", cl::Hidden,
+                cl::init(&useDefaultRegisterAllocator),
+                cl::desc("Register allocator to use for RVV register."));
+
+static void initializeDefaultRVVRegisterAllocatorOnce() {
+  RegisterRegAlloc::FunctionPassCtor Ctor = RVVRegisterRegAlloc::getDefault();
+
+  if (!Ctor) {
+    Ctor = RVVRegAlloc;
+    RVVRegisterRegAlloc::setDefault(RVVRegAlloc);
+  }
+}
+
+static FunctionPass *createBasicRVVRegisterAllocator() {
+  return createBasicRegisterAllocator(onlyAllocateRVVReg);
+}
+
+static FunctionPass *createGreedyRVVRegisterAllocator() {
+  return createGreedyRegisterAllocator(onlyAllocateRVVReg);
+}
+
+static FunctionPass *createFastRVVRegisterAllocator() {
+  return createFastRegisterAllocator(onlyAllocateRVVReg, false);
+}
+
+static RVVRegisterRegAlloc basicRegAllocRVVReg("basic",
+                                               "basic register allocator",
+                                               createBasicRVVRegisterAllocator);
+static RVVRegisterRegAlloc
+    greedyRegAllocRVVReg("greedy", "greedy register allocator",
+                         createGreedyRVVRegisterAllocator);
+
+static RVVRegisterRegAlloc fastRegAllocRVVReg("fast", "fast register allocator",
+                                              createFastRVVRegisterAllocator);
+
 class RISCVPassConfig : public TargetPassConfig {
 public:
   RISCVPassConfig(RISCVTargetMachine &TM, PassManagerBase &PM)
-      : TargetPassConfig(TM, PM) {}
+      : TargetPassConfig(TM, PM) {
+    if (TM.getOptLevel() != CodeGenOptLevel::None)
+      substitutePass(&PostRASchedulerID, &PostMachineSchedulerID);
+    setEnableSinkAndFold(EnableSinkFold);
+  }
 
   RISCVTargetMachine &getRISCVTargetMachine() const {
     return getTM<RISCVTargetMachine>();
@@ -244,20 +400,27 @@ public:
   ScheduleDAGInstrs *
   createMachineScheduler(MachineSchedContext *C) const override {
     const RISCVSubtarget &ST = C->MF->getSubtarget<RISCVSubtarget>();
-    if (ST.hasMacroFusion()) {
-      ScheduleDAGMILive *DAG = createGenericSchedLive(C);
-      DAG->addMutation(createRISCVMacroFusionDAGMutation());
-      return DAG;
+    ScheduleDAGMILive *DAG = nullptr;
+    if (EnableMISchedLoadClustering) {
+      DAG = createGenericSchedLive(C);
+      DAG->addMutation(createLoadClusterDAGMutation(
+          DAG->TII, DAG->TRI, /*ReorderWhileClustering=*/true));
     }
-    return nullptr;
+    const auto &MacroFusions = ST.getMacroFusions();
+    if (!MacroFusions.empty()) {
+      DAG = DAG ? DAG : createGenericSchedLive(C);
+      DAG->addMutation(createMacroFusionDAGMutation(MacroFusions));
+    }
+    return DAG;
   }
 
   ScheduleDAGInstrs *
   createPostMachineScheduler(MachineSchedContext *C) const override {
     const RISCVSubtarget &ST = C->MF->getSubtarget<RISCVSubtarget>();
-    if (ST.hasMacroFusion()) {
+    const auto &MacroFusions = ST.getMacroFusions();
+    if (!MacroFusions.empty()) {
       ScheduleDAGMI *DAG = createGenericSchedPostRA(C);
-      DAG->addMutation(createRISCVMacroFusionDAGMutation());
+      DAG->addMutation(createMacroFusionDAGMutation(MacroFusions));
       return DAG;
     }
     return nullptr;
@@ -267,15 +430,22 @@ public:
   bool addPreISel() override;
   bool addInstSelector() override;
   bool addIRTranslator() override;
+  void addPreLegalizeMachineIR() override;
   bool addLegalizeMachineIR() override;
+  void addPreRegBankSelect() override;
   bool addRegBankSelect() override;
   bool addGlobalInstructionSelect() override;
   void addPreEmitPass() override;
   void addPreEmitPass2() override;
   void addPreSched2() override;
   void addMachineSSAOptimization() override;
+  FunctionPass *createRVVRegAllocPass(bool Optimized);
+  bool addRegAssignAndRewriteFast() override;
+  bool addRegAssignAndRewriteOptimized() override;
   void addPreRegAlloc() override;
   void addPostRegAlloc() override;
+  void addOptimizedRegAlloc() override;
+  void addFastRegAlloc() override;
 };
 } // namespace
 
@@ -283,20 +453,54 @@ TargetPassConfig *RISCVTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new RISCVPassConfig(*this, PM);
 }
 
+FunctionPass *RISCVPassConfig::createRVVRegAllocPass(bool Optimized) {
+  // Initialize the global default.
+  llvm::call_once(InitializeDefaultRVVRegisterAllocatorFlag,
+                  initializeDefaultRVVRegisterAllocatorOnce);
+
+  RegisterRegAlloc::FunctionPassCtor Ctor = RVVRegisterRegAlloc::getDefault();
+  if (Ctor != useDefaultRegisterAllocator)
+    return Ctor();
+
+  if (Optimized)
+    return createGreedyRVVRegisterAllocator();
+
+  return createFastRVVRegisterAllocator();
+}
+
+bool RISCVPassConfig::addRegAssignAndRewriteFast() {
+  if (EnableSplitRegAlloc)
+    addPass(createRVVRegAllocPass(false));
+  return TargetPassConfig::addRegAssignAndRewriteFast();
+}
+
+bool RISCVPassConfig::addRegAssignAndRewriteOptimized() {
+  if (EnableSplitRegAlloc) {
+    addPass(createRVVRegAllocPass(true));
+    addPass(createVirtRegRewriter(false));
+  }
+  return TargetPassConfig::addRegAssignAndRewriteOptimized();
+}
+
 void RISCVPassConfig::addIRPasses() {
+  //insertPass(Annotation2MetadataPass::ID(), &VortexBranchDivergence0ID);
+
   addPass(createAtomicExpandPass());
 
-  if (getOptLevel() != CodeGenOpt::None)
-    addPass(createRISCVGatherScatterLoweringPass());
+  if (getOptLevel() != CodeGenOptLevel::None) {
+    if (EnableLoopDataPrefetch)
+      addPass(createLoopDataPrefetchPass());
 
-  if (getOptLevel() != CodeGenOpt::None)
+    addPass(createRISCVGatherScatterLoweringPass());
+    addPass(createInterleavedAccessPass());
     addPass(createRISCVCodeGenPreparePass());
+  }
 
   TargetPassConfig::addIRPasses();
 }
 
 bool RISCVPassConfig::addPreISel() {
-  if (TM->getOptLevel() != CodeGenOpt::None) {
+  if (TM->getOptLevel() != CodeGenOptLevel::None) {
     // Add a barrier before instruction selection so that we will not get
     // deleted block address after enabling default outlining. See D99707 for
     // more details.
@@ -308,20 +512,16 @@ bool RISCVPassConfig::addPreISel() {
                                   /* OnlyOptimizeForSize */ false,
                                   /* MergeExternalByDefault */ true));
   }
-  
-  printf("isVortex ? %d \n", getRISCVTargetMachine().isVortex());
-
-  if (getRISCVTargetMachine().isVortex() 
-   && EnableVortexBranchDivergence != 0) {
-    addPass(createScalarizerPass());
-    addPass(createCFGSimplificationPass());
-    addPass(createSinkingPass());
-    addPass(createLoopSimplifyCFGPass());
+  if (gVortexBranchDivergenceMode != 0) {
     addPass(createLowerSwitchPass());
-    addPass(createFlattenCFGPass());
+    addPass(createCFGSimplificationPass());
+    addPass(createLoopSimplifyPass());
+    addPass(createUnifyLoopExitsPass());
     addPass(createVortexBranchDivergence0Pass());
-    addPass(createStructurizeCFGPass(true, (EnableVortexBranchDivergence == 1)));
-    addPass(createVortexBranchDivergence1Pass(EnableVortexBranchDivergence));
+    addPass(createStructurizeCFGPass(true, (VortexKernelSchedulerMode == 1)));
+    addPass(createVortexBranchDivergence1Pass(VortexKernelSchedulerMode));
+  }
+  if (VortexKernelSchedulerMode != 0) {
     addPass(createVortexIntrinsicFuncLoweringPass());
   }
   return false;
@@ -338,9 +538,22 @@ bool RISCVPassConfig::addIRTranslator() {
   return false;
 }
 
+void RISCVPassConfig::addPreLegalizeMachineIR() {
+  if (getOptLevel() == CodeGenOptLevel::None) {
+    addPass(createRISCVO0PreLegalizerCombiner());
+  } else {
+    addPass(createRISCVPreLegalizerCombiner());
+  }
+}
+
 bool RISCVPassConfig::addLegalizeMachineIR() {
   addPass(new Legalizer());
   return false;
+}
+
+void RISCVPassConfig::addPreRegBankSelect() {
+  if (getOptLevel() != CodeGenOptLevel::None)
+    addPass(createRISCVPostLegalizerCombiner());
 }
 
 bool RISCVPassConfig::addRegBankSelect() {
@@ -353,42 +566,95 @@ bool RISCVPassConfig::addGlobalInstructionSelect() {
   return false;
 }
 
-void RISCVPassConfig::addPreSched2() {}
+void RISCVPassConfig::addPreSched2() {
+  addPass(createRISCVPostRAExpandPseudoPass());
+
+  // Emit KCFI checks for indirect calls.
+  addPass(createKCFIPass());
+}
 
 void RISCVPassConfig::addPreEmitPass() {
   addPass(&BranchRelaxationPassID);
   addPass(createRISCVMakeCompressibleOptPass());
+
+  // TODO: It would potentially be better to schedule copy propagation after
+  // expanding pseudos (in addPreEmitPass2). However, performing copy
+  // propagation after the machine outliner (which runs after addPreEmitPass)
+  // currently leads to incorrect code-gen, where copies to registers within
+  // outlined functions are removed erroneously.
+  if (TM->getOptLevel() >= CodeGenOptLevel::Default &&
+      EnableRISCVCopyPropagation)
+    addPass(createMachineCopyPropagationPass(true));
 }
 
 void RISCVPassConfig::addPreEmitPass2() {
+  if (TM->getOptLevel() != CodeGenOptLevel::None) {
+    addPass(createRISCVMoveMergePass());
+    // Schedule PushPop Optimization before expansion of Pseudo instruction,
+    // ensuring return instruction is detected correctly.
+    addPass(createRISCVPushPopOptimizationPass());
+  }
   addPass(createRISCVExpandPseudoPass());
+
   // Schedule the expansion of AMOs at the last possible moment, avoiding the
   // possibility for other passes to break the requirements for forward
   // progress in the LR/SC block.
   addPass(createRISCVExpandAtomicPseudoPass());
+
+  // KCFI indirect call checks are lowered to a bundle.
+  addPass(createUnpackMachineBundles([&](const MachineFunction &MF) {
+    return MF.getFunction().getParent()->getModuleFlag("kcfi");
+  }));
+
+  if (gVortexBranchDivergenceMode != 0) {
+    addPass(createVortexBranchDivergence2Pass(1));
+  }
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
+  addPass(createRISCVFoldMasksPass());
+
   TargetPassConfig::addMachineSSAOptimization();
+
   if (EnableMachineCombiner)
     addPass(&MachineCombinerID);
 
-  if (TM->getTargetTriple().getArch() == Triple::riscv64) {
-    addPass(createRISCVSExtWRemovalPass());
-    addPass(createRISCVStripWSuffixPass());
+  if (TM->getTargetTriple().isRISCV64()) {
+    addPass(createRISCVOptWInstrsPass());
   }
 }
 
 void RISCVPassConfig::addPreRegAlloc() {
   addPass(createRISCVPreRAExpandPseudoPass());
-  if (TM->getOptLevel() != CodeGenOpt::None)
+  if (TM->getOptLevel() != CodeGenOptLevel::None)
     addPass(createRISCVMergeBaseOffsetOptPass());
   addPass(createRISCVInsertVSETVLIPass());
-  addPass(createVortexBranchDivergence2Pass("addPreRegAlloc"));
+  if (TM->getOptLevel() != CodeGenOptLevel::None &&
+      EnableRISCVDeadRegisterElimination)
+    addPass(createRISCVDeadRegisterDefinitionsPass());
+  addPass(createRISCVInsertReadWriteCSRPass());
+  addPass(createRISCVInsertWriteVXRMPass());
+
+  if (gVortexBranchDivergenceMode != 0) {
+    addPass(createVortexBranchDivergence2Pass(0));
+  }
 }
 
+void RISCVPassConfig::addOptimizedRegAlloc() {
+  insertPass(&DetectDeadLanesID, &RISCVInitUndefID);
+
+  TargetPassConfig::addOptimizedRegAlloc();
+}
+
+void RISCVPassConfig::addFastRegAlloc() {
+  addPass(createRISCVInitUndefPass());
+  TargetPassConfig::addFastRegAlloc();
+}
+
+
 void RISCVPassConfig::addPostRegAlloc() {
-  if (TM->getOptLevel() != CodeGenOpt::None && EnableRedundantCopyElimination)
+  if (TM->getOptLevel() != CodeGenOptLevel::None &&
+      EnableRedundantCopyElimination)
     addPass(createRISCVRedundantCopyEliminationPass());
 }
 

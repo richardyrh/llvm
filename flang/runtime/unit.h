@@ -59,7 +59,8 @@ public:
   static void CloseAll(IoErrorHandler &);
   static void FlushAll(IoErrorHandler &);
 
-  void OpenUnit(std::optional<OpenStatus>, std::optional<Action>, Position,
+  // Returns true if an existing unit was closed
+  bool OpenUnit(std::optional<OpenStatus>, std::optional<Action>, Position,
       OwningPtr<char> &&path, std::size_t pathLength, Convert,
       IoErrorHandler &);
   void OpenAnonymousUnit(std::optional<OpenStatus>, std::optional<Action>,
@@ -139,6 +140,7 @@ private:
   Direction direction_{Direction::Output};
   bool impliedEndfile_{false}; // sequential/stream output has taken place
   bool beganReadingRecord_{false};
+  bool anyWriteSinceLastPositioning_{false};
   bool directAccessRecWasSet_{false}; // REC= appeared
   // Subtle: The beginning of the frame can't be allowed to advance
   // during a single list-directed READ due to the possibility of a
@@ -165,14 +167,14 @@ private:
   // Points to the active alternative (if any) in u_ for use as a Cookie
   std::optional<IoStatementState> io_;
 
-  // A stack of child I/O pseudo-units for user-defined derived type
-  // I/O that have this unit number.
+  // A stack of child I/O pseudo-units for defined I/O that have this
+  // unit number.
   OwningPtr<ChildIo> child_;
 };
 
-// A pseudo-unit for child I/O statements in user-defined derived type
-// I/O subroutines; it forwards operations to the parent I/O statement,
-// which can also be a child I/O statement.
+// A pseudo-unit for child I/O statements in defined I/O subroutines;
+// it forwards operations to the parent I/O statement, which might also
+// be a child I/O statement.
 class ChildIo {
 public:
   ChildIo(IoStatementState &parent, OwningPtr<ChildIo> &&previous)
@@ -203,7 +205,7 @@ private:
       ChildListIoStatementState<Direction::Input>,
       ChildUnformattedIoStatementState<Direction::Output>,
       ChildUnformattedIoStatementState<Direction::Input>, InquireUnitState,
-      ErroneousIoStatementState>
+      ErroneousIoStatementState, ExternalMiscIoStatementState>
       u_;
   std::optional<IoStatementState> io_;
 };

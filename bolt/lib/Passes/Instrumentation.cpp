@@ -13,6 +13,7 @@
 #include "bolt/Passes/Instrumentation.h"
 #include "bolt/Core/ParallelUtilities.h"
 #include "bolt/RuntimeLibs/InstrumentationRuntimeLibrary.h"
+#include "bolt/Utils/CommandLineOpts.h"
 #include "bolt/Utils/Utils.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/RWMutex.h"
@@ -33,7 +34,7 @@ cl::opt<std::string> InstrumentationFilename(
 
 cl::opt<std::string> InstrumentationBinpath(
     "instrumentation-binpath",
-    cl::desc("path to instumented binary in case if /proc/self/map_files "
+    cl::desc("path to instrumented binary in case if /proc/self/map_files "
              "is not accessible due to access restriction issues"),
     cl::Optional, cl::cat(BoltInstrCategory));
 
@@ -84,6 +85,24 @@ cl::opt<bool> InstrumentCalls("instrument-calls",
 
 namespace llvm {
 namespace bolt {
+
+static bool hasAArch64ExclusiveMemop(BinaryFunction &Function) {
+  // FIXME ARMv8-a architecture reference manual says that software must avoid
+  // having any explicit memory accesses between exclusive load and associated
+  // store instruction. So for now skip instrumentation for functions that have
+  // these instructions, since it might lead to runtime deadlock.
+  BinaryContext &BC = Function.getBinaryContext();
+  for (const BinaryBasicBlock &BB : Function)
+    for (const MCInst &Inst : BB)
+      if (BC.MIB->isAArch64Exclusive(Inst)) {
+        if (opts::Verbosity >= 1)
+          outs() << "BOLT-INSTRUMENTER: Function " << Function
+                 << " has exclusive instructions, skip instrumentation\n";
+        return true;
+      }
+
+  return false;
+}
 
 uint32_t Instrumentation::getFunctionNameIndex(const BinaryFunction &Function) {
   auto Iter = FuncToStringIdx.find(&Function);
@@ -174,19 +193,15 @@ void Instrumentation::createLeafNodeDescription(FunctionDescription &FuncDesc,
 InstructionListType
 Instrumentation::createInstrumentationSnippet(BinaryContext &BC, bool IsLeaf) {
   auto L = BC.scopeLock();
-  MCSymbol *Label;
-  Label = BC.Ctx->createNamedTempSymbol("InstrEntry");
+  MCSymbol *Label = BC.Ctx->createNamedTempSymbol("InstrEntry");
   Summary->Counters.emplace_back(Label);
-  InstructionListType CounterInstrs;
-  BC.MIB->createInstrIncMemory(CounterInstrs, Label, &*BC.Ctx, IsLeaf);
-  return CounterInstrs;
+  return BC.MIB->createInstrIncMemory(Label, BC.Ctx.get(), IsLeaf,
+                                      BC.AsmInfo->getCodePointerSize());
 }
 
-namespace {
-
 // Helper instruction sequence insertion function
-BinaryBasicBlock::iterator insertInstructions(InstructionListType &Instrs,
-                                              BinaryBasicBlock &BB,
+static BinaryBasicBlock::iterator
+insertInstructions(InstructionListType &Instrs, BinaryBasicBlock &BB,
                                               BinaryBasicBlock::iterator Iter) {
   for (MCInst &NewInst : Instrs) {
     Iter = BB.insertInstruction(Iter, NewInst);
@@ -194,7 +209,6 @@ BinaryBasicBlock::iterator insertInstructions(InstructionListType &Instrs,
   }
   return Iter;
 }
-} // namespace
 
 void Instrumentation::instrumentLeafNode(BinaryBasicBlock &BB,
                                          BinaryBasicBlock::iterator Iter,
@@ -218,7 +232,7 @@ void Instrumentation::instrumentIndirectTarget(BinaryBasicBlock &BB,
   BinaryContext &BC = FromFunction.getBinaryContext();
   bool IsTailCall = BC.MIB->isTailCall(*Iter);
   InstructionListType CounterInstrs = BC.MIB->createInstrumentedIndirectCall(
-      *Iter, IsTailCall,
+      std::move(*Iter),
       IsTailCall ? IndTailCallHandlerExitBBFunction->getSymbol()
                  : IndCallHandlerExitBBFunction->getSymbol(),
       IndCallSiteID, &*BC.Ctx);
@@ -234,8 +248,9 @@ bool Instrumentation::instrumentOneTarget(
     BinaryBasicBlock &FromBB, uint32_t From, BinaryFunction &ToFunc,
     BinaryBasicBlock *TargetBB, uint32_t ToOffset, bool IsLeaf, bool IsInvoke,
     FunctionDescription *FuncDesc, uint32_t FromNodeID, uint32_t ToNodeID) {
+  BinaryContext &BC = FromFunction.getBinaryContext();
   {
-    auto L = FromFunction.getBinaryContext().scopeLock();
+    auto L = BC.scopeLock();
     bool Created = true;
     if (!TargetBB)
       Created = createCallDescription(*FuncDesc, FromFunction, From, FromNodeID,
@@ -248,10 +263,8 @@ bool Instrumentation::instrumentOneTarget(
       return false;
   }
 
-  InstructionListType CounterInstrs =
-      createInstrumentationSnippet(FromFunction.getBinaryContext(), IsLeaf);
+  InstructionListType CounterInstrs = createInstrumentationSnippet(BC, IsLeaf);
 
-  BinaryContext &BC = FromFunction.getBinaryContext();
   const MCInst &Inst = *Iter;
   if (BC.MIB->isCall(Inst)) {
     // This code handles both
@@ -292,6 +305,9 @@ void Instrumentation::instrumentFunction(BinaryFunction &Function,
 
   BinaryContext &BC = Function.getBinaryContext();
   if (BC.isMachO() && Function.hasName("___GLOBAL_init_65535/1"))
+    return;
+
+  if (BC.isAArch64() && hasAArch64ExclusiveMemop(Function))
     return;
 
   SplitWorklistTy SplitWorklist;
@@ -344,7 +360,7 @@ void Instrumentation::instrumentFunction(BinaryFunction &Function,
       const BinaryBasicBlock *Pred;
       std::tie(Pred, BB) = Stack.top();
       Stack.pop();
-      if (VisitedSet.find(BB) != VisitedSet.end())
+      if (llvm::is_contained(VisitedSet, BB))
         continue;
 
       VisitedSet.insert(BB);
@@ -388,7 +404,7 @@ void Instrumentation::instrumentFunction(BinaryFunction &Function,
       else if (BC.MIB->isUnconditionalBranch(Inst))
         HasUnconditionalBranch = true;
       else if ((!BC.MIB->isCall(Inst) && !BC.MIB->isConditionalBranch(Inst)) ||
-               BC.MIB->isUnsupportedBranch(Inst.getOpcode()))
+               BC.MIB->isUnsupportedBranch(Inst))
         continue;
 
       const uint32_t FromOffset = *BC.MIB->getOffset(Inst);
@@ -412,7 +428,7 @@ void Instrumentation::instrumentFunction(BinaryFunction &Function,
       }
       if (TargetFunc) {
         // Do not instrument edges in the spanning tree
-        if (STOutSet[&BB].find(TargetBB) != STOutSet[&BB].end()) {
+        if (llvm::is_contained(STOutSet[&BB], TargetBB)) {
           auto L = BC.scopeLock();
           createEdgeDescription(*FuncDesc, Function, FromOffset, BBToID[&BB],
                                 Function, ToOffset, BBToID[TargetBB],
@@ -429,7 +445,7 @@ void Instrumentation::instrumentFunction(BinaryFunction &Function,
       if (IsJumpTable) {
         for (BinaryBasicBlock *&Succ : BB.successors()) {
           // Do not instrument edges in the spanning tree
-          if (STOutSet[&BB].find(&*Succ) != STOutSet[&BB].end()) {
+          if (llvm::is_contained(STOutSet[&BB], &*Succ)) {
             auto L = BC.scopeLock();
             createEdgeDescription(*FuncDesc, Function, FromOffset, BBToID[&BB],
                                   Function, Succ->getInputOffset(),
@@ -472,7 +488,7 @@ void Instrumentation::instrumentFunction(BinaryFunction &Function,
       FromOffset = *BC.MIB->getOffset(*LastInstr);
 
       // Do not instrument edges in the spanning tree
-      if (STOutSet[&BB].find(FTBB) != STOutSet[&BB].end()) {
+      if (llvm::is_contained(STOutSet[&BB], FTBB)) {
         auto L = BC.scopeLock();
         createEdgeDescription(*FuncDesc, Function, FromOffset, BBToID[&BB],
                               Function, FTBB->getInputOffset(), BBToID[FTBB],
@@ -511,9 +527,6 @@ void Instrumentation::instrumentFunction(BinaryFunction &Function,
 }
 
 void Instrumentation::runOnFunctions(BinaryContext &BC) {
-  if (!BC.isX86())
-    return;
-
   const unsigned Flags = BinarySection::getFlags(/*IsReadOnly=*/false,
                                                  /*IsText=*/false,
                                                  /*IsAllocatable=*/true);

@@ -6,18 +6,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <utility>
-#include <optional>
+#include "mlir/Pass/PassRegistry.h"
 
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
-#include "mlir/Pass/PassRegistry.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
+
+#include <optional>
+#include <utility>
 
 using namespace mlir;
 using namespace detail;
@@ -99,7 +100,10 @@ void mlir::registerPassPipeline(
   PassPipelineInfo pipelineInfo(arg, description, function,
                                 std::move(optHandler));
   bool inserted = passPipelineRegistry->try_emplace(arg, pipelineInfo).second;
-  assert(inserted && "Pass pipeline registered multiple times");
+#ifndef NDEBUG
+  if (!inserted)
+    report_fatal_error("Pass pipeline " + arg + " registered multiple times");
+#endif
   (void)inserted;
 }
 
@@ -139,9 +143,16 @@ void mlir::registerPass(const PassAllocatorFunction &function) {
 }
 
 /// Returns the pass info for the specified pass argument or null if unknown.
-const PassInfo *mlir::Pass::lookupPassInfo(StringRef passArg) {
+const PassInfo *mlir::PassInfo::lookup(StringRef passArg) {
   auto it = passRegistry->find(passArg);
   return it == passRegistry->end() ? nullptr : &it->second;
+}
+
+/// Returns the pass pipeline info for the specified pass pipeline argument or
+/// null if unknown.
+const PassPipelineInfo *mlir::PassPipelineInfo::lookup(StringRef pipelineArg) {
+  auto it = passPipelineRegistry->find(pipelineArg);
+  return it == passPipelineRegistry->end() ? nullptr : &it->second;
 }
 
 //===----------------------------------------------------------------------===//
@@ -588,6 +599,9 @@ LogicalResult TextualPipeline::parsePipelineText(StringRef text,
       pipeline.back().options = text.substr(0, close);
       text = text.substr(close + 1);
 
+      // Consume space characters that an user might add for readability.
+      text = text.ltrim();
+
       // Skip checking for '(' because nested pipelines cannot have options.
     } else if (sep == '(') {
       text = text.substr(1);
@@ -607,6 +621,8 @@ LogicalResult TextualPipeline::parsePipelineText(StringRef text,
                             "parentheses while parsing pipeline");
 
       pipelineStack.pop_back();
+      // Consume space characters that an user might add for readability.
+      text = text.ltrim();
     }
 
     // Check if we've finished parsing.
@@ -648,16 +664,14 @@ TextualPipeline::resolvePipelineElement(PipelineElement &element,
   // pipeline.
   if (!element.innerPipeline.empty())
     return resolvePipelineElements(element.innerPipeline, errorHandler);
+
   // Otherwise, this must be a pass or pass pipeline.
   // Check to see if a pipeline was registered with this name.
-  auto pipelineRegistryIt = passPipelineRegistry->find(element.name);
-  if (pipelineRegistryIt != passPipelineRegistry->end()) {
-    element.registryEntry = &pipelineRegistryIt->second;
+  if ((element.registryEntry = PassPipelineInfo::lookup(element.name)))
     return success();
-  }
 
   // If not, then this must be a specific pass name.
-  if ((element.registryEntry = Pass::lookupPassInfo(element.name)))
+  if ((element.registryEntry = PassInfo::lookup(element.name)))
     return success();
 
   // Emit an error for the unknown pass.
@@ -703,6 +717,7 @@ LogicalResult mlir::parsePassPipeline(StringRef pipeline, OpPassManager &pm,
 
 FailureOr<OpPassManager> mlir::parsePassPipeline(StringRef pipeline,
                                                  raw_ostream &errorStream) {
+  pipeline = pipeline.trim();
   // Pipelines are expected to be of the form `<op-name>(<pipeline>)`.
   size_t pipelineStart = pipeline.find_first_of('(');
   if (pipelineStart == 0 || pipelineStart == StringRef::npos ||
@@ -712,7 +727,7 @@ FailureOr<OpPassManager> mlir::parsePassPipeline(StringRef pipeline,
     return failure();
   }
 
-  StringRef opName = pipeline.take_front(pipelineStart);
+  StringRef opName = pipeline.take_front(pipelineStart).rtrim();
   OpPassManager pm(opName);
   if (failed(parsePassPipeline(pipeline.drop_front(1 + pipelineStart), pm,
                                errorStream)))

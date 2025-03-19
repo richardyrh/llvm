@@ -16,11 +16,10 @@
 using namespace llvm;
 using namespace llvm::wasm;
 
-namespace lld {
-namespace wasm {
+namespace lld::wasm {
 
 static bool requiresGOTAccess(const Symbol *sym) {
-  if (!config->isPic &&
+  if (!ctx.isPic &&
       config->unresolvedSymbols != UnresolvedPolicy::ImportDynamic)
     return false;
   if (sym->isHidden() || sym->isLocal())
@@ -55,9 +54,15 @@ static void reportUndefined(Symbol *sym) {
     case UnresolvedPolicy::Ignore:
       LLVM_DEBUG(dbgs() << "ignoring undefined symbol: " + toString(*sym) +
                                "\n");
-      if (!config->importUndefined) {
+      break;
+    case UnresolvedPolicy::ImportDynamic:
+      break;
+    }
+
         if (auto *f = dyn_cast<UndefinedFunction>(sym)) {
-          if (!f->stubFunction) {
+      if (!f->stubFunction &&
+          config->unresolvedSymbols != UnresolvedPolicy::ImportDynamic &&
+          !config->importUndefined) {
             f->stubFunction = symtab->createUndefinedStub(*f->getSignature());
             f->stubFunction->markLive();
             // Mark the function itself as a stub which prevents it from being
@@ -66,11 +71,6 @@ static void reportUndefined(Symbol *sym) {
           }
         }
       }
-      break;
-    case UnresolvedPolicy::ImportDynamic:
-      break;
-    }
-  }
 }
 
 static void addGOTEntry(Symbol *sym) {
@@ -142,7 +142,7 @@ void scanRelocations(InputChunk *chunk) {
       break;
     }
 
-    if (config->isPic ||
+    if (ctx.isPic ||
         (sym->isUndefined() &&
          config->unresolvedSymbols == UnresolvedPolicy::ImportDynamic)) {
       switch (reloc.Type) {
@@ -176,5 +176,4 @@ void scanRelocations(InputChunk *chunk) {
   }
 }
 
-} // namespace wasm
-} // namespace lld
+} // namespace lld::wasm

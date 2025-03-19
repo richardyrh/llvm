@@ -1,5 +1,5 @@
 // RUN: %clang_cc1 -fcxx-exceptions -fexceptions -std=c++11 -fblocks -fms-extensions -fsyntax-only -verify=expected,cxx11 %s
-// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -std=c++2b -fblocks -fms-extensions -fsyntax-only -verify=expected %s
+// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -std=c++23 -fblocks -fms-extensions -fsyntax-only -verify=expected %s
 
 template<typename T, typename U> struct pair;
 template<typename ...> struct tuple;
@@ -69,8 +69,10 @@ struct TestPPName
   typedef Types incomplete_array[]; // expected-error{{declaration type contains unexpanded parameter pack 'Types'}} 
 
   // VariableArrayType
-  void f(int i) {
-    Types variable_array[i]; // expected-error{{declaration type contains unexpanded parameter pack 'Types'}} 
+  void f(int i) {            // expected-note {{declared here}}
+    Types variable_array[i]; // expected-error{{declaration type contains unexpanded parameter pack 'Types'}} \
+                                expected-warning {{variable length arrays in C++ are a Clang extension}} \
+                                expected-note {{function parameter 'i' with unknown value cannot be used in a constant expression}}
   }
 
   // DependentSizedArrayType
@@ -367,9 +369,51 @@ test:
   void f(int arg = values); // expected-error{{default argument contains unexpanded parameter pack 'values'}}
 }
 
-// Test unexpanded parameter packs in partial specializations.
-template<typename ...Types>
-struct TestUnexpandedDecls<int, Types>; // expected-error{{partial specialization contains unexpanded parameter pack 'Types'}}
+// Test unexpanded parameter packs in partial/explicit specializations.
+namespace Specializations {
+  template<typename T, typename... Ts>
+  struct PrimaryClass;
+  template<typename... Ts>
+  struct PrimaryClass<Ts>; // expected-error{{partial specialization contains unexpanded parameter pack 'Ts'}}
+
+  template<typename T, typename... Ts>
+  void PrimaryFunction();
+  template<typename T, typename... Ts>
+  void PrimaryFunction<Ts>(); // expected-error{{function template partial specialization is not allowed}}
+
+#if __cplusplus >= 201402L
+  template<typename T, typename... Ts>
+  constexpr int PrimaryVar = 0;
+  template<typename... Ts>
+  constexpr int PrimaryVar<Ts> = 0; // expected-error{{partial specialization contains unexpanded parameter pack 'Ts'}}
+#endif
+
+  template<typename... Ts>
+  struct OuterClass {
+    template<typename... Us>
+    struct InnerClass;
+    template<>
+    struct InnerClass<Ts>; // expected-error{{explicit specialization contains unexpanded parameter pack 'Ts'}}
+    template<typename U>
+    struct InnerClass<U, Ts>; // expected-error{{partial specialization contains unexpanded parameter pack 'Ts'}}
+
+    template<typename... Us>
+    void InnerFunction();
+    template<>
+    void InnerFunction<Ts>(); // expected-error{{explicit specialization contains unexpanded parameter pack 'Ts'}}
+
+    friend void PrimaryFunction<Ts>(); // expected-error{{friend declaration contains unexpanded parameter pack 'Ts'}}
+
+#if __cplusplus >= 201402L
+    template<typename... Us>
+    constexpr static int InnerVar = 0;
+    template<>
+    constexpr static int InnerVar<Ts> = 0; // expected-error{{explicit specialization contains unexpanded parameter pack 'Ts'}}
+    template<typename U>
+    constexpr static int InnerVar<U, Ts> = 0; // expected-error{{partial specialization contains unexpanded parameter pack 'Ts'}}
+#endif
+  };
+}
 
 // Test for diagnostics in the presence of multiple unexpanded
 // parameter packs.

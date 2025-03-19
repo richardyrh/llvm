@@ -8,14 +8,24 @@
 // BLOCKS:#define __BLOCKS__ 1
 // BLOCKS:#define __block __attribute__((__blocks__(byref)))
 //
+// RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=c++26 -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix CXX26 %s
+// RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=c++2c -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix CXX26 %s
 //
+// CXX26:#define __GNUG__ 4
+// CXX26:#define __GXX_EXPERIMENTAL_CXX0X__ 1
+// CXX26:#define __GXX_RTTI 1
+// CXX26:#define __GXX_WEAK__ 1
+// CXX26:#define __cplusplus 202400L
+// CXX26:#define __private_extern__ extern
+//
+// RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=c++23 -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix CXX2B %s
 // RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=c++2b -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix CXX2B %s
 //
 // CXX2B:#define __GNUG__ 4
 // CXX2B:#define __GXX_EXPERIMENTAL_CXX0X__ 1
 // CXX2B:#define __GXX_RTTI 1
 // CXX2B:#define __GXX_WEAK__ 1
-// CXX2B:#define __cplusplus 202101L
+// CXX2B:#define __cplusplus 202302L
 // CXX2B:#define __private_extern__ extern
 //
 // RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=c++20 -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix CXX2A %s
@@ -133,11 +143,20 @@
 // RUN: %clang_cc1 -ffreestanding -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix FREESTANDING %s
 // FREESTANDING:#define __STDC_HOSTED__ 0
 //
+// RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=gnu++26 -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix GXX26 %s
+// RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=gnu++2c -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix GXX26 %s
+//
+// GXX26:#define __GNUG__ 4
+// GXX26:#define __GXX_WEAK__ 1
+// GXX26:#define __cplusplus 202400L
+// GXX26:#define __private_extern__ extern
+//
+// RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=gnu++23 -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix GXX2B %s
 // RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=gnu++2b -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix GXX2B %s
 //
 // GXX2B:#define __GNUG__ 4
 // GXX2B:#define __GXX_WEAK__ 1
-// GXX2B:#define __cplusplus 202101L
+// GXX2B:#define __cplusplus 202302L
 // GXX2B:#define __private_extern__ extern
 //
 // RUN: %clang_cc1 -x c++ -fgnuc-version=4.2.1 -std=gnu++20 -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix GXX2A %s
@@ -1435,6 +1454,13 @@
 // RUN: %clang_cc1 -triple lanai-unknown-unknown -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix LANAI %s
 // LANAI: #define __lanai__ 1
 //
+// RUN: %clang_cc1 -triple=aarch64-unknown-haiku -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix HAIKU %s
+// RUN: %clang_cc1 -triple=arm-unknown-haiku -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix HAIKU %s
+// RUN: %clang_cc1 -triple=riscv64-unknown-haiku -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix HAIKU %s
+// RUN: %clang_cc1 -triple=x86_64-unknown-haiku -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix HAIKU %s
+// RUN: %clang_cc1 -triple=i386-unknown-haiku -E -dM < /dev/null | FileCheck -match-full-lines -check-prefix HAIKU %s
+// HAIKU: #define __HAIKU__ 1
+//
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=amd64-unknown-openbsd6.1 < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=aarch64-unknown-openbsd6.1 < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=arm-unknown-openbsd6.1-gnueabi < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
@@ -1586,6 +1612,16 @@
 // WEBASSEMBLY-NEXT:#define __FLT_MIN_EXP__ (-125)
 // WEBASSEMBLY-NEXT:#define __FLT_MIN__ 1.17549435e-38F
 // WEBASSEMBLY-NEXT:#define __FLT_RADIX__ 2
+// WEBASSEMBLY-NEXT:#define __FPCLASS_NEGINF 0x0004
+// WEBASSEMBLY-NEXT:#define __FPCLASS_NEGNORMAL 0x0008
+// WEBASSEMBLY-NEXT:#define __FPCLASS_NEGSUBNORMAL 0x0010
+// WEBASSEMBLY-NEXT:#define __FPCLASS_NEGZERO 0x0020
+// WEBASSEMBLY-NEXT:#define __FPCLASS_POSINF 0x0200
+// WEBASSEMBLY-NEXT:#define __FPCLASS_POSNORMAL 0x0100
+// WEBASSEMBLY-NEXT:#define __FPCLASS_POSSUBNORMAL 0x0080
+// WEBASSEMBLY-NEXT:#define __FPCLASS_POSZERO 0x0040
+// WEBASSEMBLY-NEXT:#define __FPCLASS_QNAN 0x0002
+// WEBASSEMBLY-NEXT:#define __FPCLASS_SNAN 0x0001
 // WEBASSEMBLY-NEXT:#define __GCC_ATOMIC_BOOL_LOCK_FREE 2
 // WEBASSEMBLY-NEXT:#define __GCC_ATOMIC_CHAR16_T_LOCK_FREE 2
 // WEBASSEMBLY-NEXT:#define __GCC_ATOMIC_CHAR32_T_LOCK_FREE 2
@@ -1706,6 +1742,11 @@
 // WEBASSEMBLY64-NEXT:#define __LONG_MAX__ 9223372036854775807L
 // WEBASSEMBLY64-NEXT:#define __LONG_WIDTH__ 64
 // WEBASSEMBLY64-NEXT:#define __LP64__ 1
+// WEBASSEMBLY-NEXT:#define __MEMORY_SCOPE_DEVICE 1 
+// WEBASSEMBLY-NEXT:#define __MEMORY_SCOPE_SINGLE 4 
+// WEBASSEMBLY-NEXT:#define __MEMORY_SCOPE_SYSTEM 0 
+// WEBASSEMBLY-NEXT:#define __MEMORY_SCOPE_WRKGRP 2 
+// WEBASSEMBLY-NEXT:#define __MEMORY_SCOPE_WVFRNT 3 
 // WEBASSEMBLY-NEXT:#define __NO_INLINE__ 1
 // WEBASSEMBLY-NEXT:#define __NO_MATH_ERRNO__ 1
 // WEBASSEMBLY-NEXT:#define __OBJC_BOOL_IS_BOOL 0
@@ -2021,6 +2062,11 @@
 // AVR:#define __LDBL_MIN__ 1.17549435e-38L
 // AVR:#define __LONG_LONG_MAX__ 9223372036854775807LL
 // AVR:#define __LONG_MAX__ 2147483647L
+// AVR:#define __MEMORY_SCOPE_DEVICE 1 
+// AVR:#define __MEMORY_SCOPE_SINGLE 4 
+// AVR:#define __MEMORY_SCOPE_SYSTEM 0 
+// AVR:#define __MEMORY_SCOPE_WRKGRP 2 
+// AVR:#define __MEMORY_SCOPE_WVFRNT 3 
 // AVR:#define __NO_INLINE__ 1
 // AVR:#define __ORDER_BIG_ENDIAN__ 4321
 // AVR:#define __ORDER_LITTLE_ENDIAN__ 1234
@@ -2312,6 +2358,11 @@
 // RISCV32: #define __LITTLE_ENDIAN__ 1
 // RISCV32: #define __LONG_LONG_MAX__ 9223372036854775807LL
 // RISCV32: #define __LONG_MAX__ 2147483647L
+// RISCV32: #define __MEMORY_SCOPE_DEVICE 1 
+// RISCV32: #define __MEMORY_SCOPE_SINGLE 4 
+// RISCV32: #define __MEMORY_SCOPE_SYSTEM 0 
+// RISCV32: #define __MEMORY_SCOPE_WRKGRP 2 
+// RISCV32: #define __MEMORY_SCOPE_WVFRNT 3 
 // RISCV32: #define __NO_INLINE__ 1
 // RISCV32: #define __POINTER_WIDTH__ 32
 // RISCV32: #define __PRAGMA_REDEFINE_EXTNAME 1
@@ -2519,6 +2570,11 @@
 // RISCV64: #define __LONG_LONG_MAX__ 9223372036854775807LL
 // RISCV64: #define __LONG_MAX__ 9223372036854775807L
 // RISCV64: #define __LP64__ 1
+// RISCV64: #define __MEMORY_SCOPE_DEVICE 1 
+// RISCV64: #define __MEMORY_SCOPE_SINGLE 4 
+// RISCV64: #define __MEMORY_SCOPE_SYSTEM 0 
+// RISCV64: #define __MEMORY_SCOPE_WRKGRP 2 
+// RISCV64: #define __MEMORY_SCOPE_WVFRNT 3 
 // RISCV64: #define __NO_INLINE__ 1
 // RISCV64: #define __POINTER_WIDTH__ 64
 // RISCV64: #define __PRAGMA_REDEFINE_EXTNAME 1

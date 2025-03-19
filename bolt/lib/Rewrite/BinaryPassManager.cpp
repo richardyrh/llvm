@@ -12,6 +12,7 @@
 #include "bolt/Passes/AllocCombiner.h"
 #include "bolt/Passes/AsmDump.h"
 #include "bolt/Passes/CMOVConversion.h"
+#include "bolt/Passes/FixRISCVCallsPass.h"
 #include "bolt/Passes/FixRelaxationPass.h"
 #include "bolt/Passes/FrameOptimizer.h"
 #include "bolt/Passes/Hugify.h"
@@ -71,6 +72,11 @@ static cl::opt<bool> JTFootprintReductionFlag(
              "instructions at jump sites"),
     cl::cat(BoltOptCategory));
 
+static cl::opt<bool>
+    KeepNops("keep-nops",
+             cl::desc("keep no-op instructions. By default they are removed."),
+             cl::Hidden, cl::cat(BoltOptCategory));
+
 cl::opt<bool> NeverPrint("never-print", cl::desc("never print"),
                          cl::ReallyHidden, cl::cat(BoltOptCategory));
 
@@ -110,7 +116,7 @@ static cl::opt<bool>
 
 static cl::opt<bool> PrintJTFootprintReduction(
     "print-after-jt-footprint-reduction",
-    cl::desc("print function after jt-footprint-reduction pass"),
+    cl::desc("print function after jt-footprint-reduction pass"), cl::Hidden,
     cl::cat(BoltOptCategory));
 
 static cl::opt<bool>
@@ -159,7 +165,7 @@ static cl::opt<bool>
 
 static cl::opt<bool> PrintRetpolineInsertion(
     "print-retpoline-insertion",
-    cl::desc("print functions after retpoline insertion pass"),
+    cl::desc("print functions after retpoline insertion pass"), cl::Hidden,
     cl::cat(BoltCategory));
 
 static cl::opt<bool> PrintSCTC(
@@ -178,16 +184,21 @@ static cl::opt<bool>
 
 static cl::opt<bool>
     PrintStoke("print-stoke", cl::desc("print functions after stoke analysis"),
-               cl::cat(BoltOptCategory));
+               cl::Hidden, cl::cat(BoltOptCategory));
 
 static cl::opt<bool>
     PrintFixRelaxations("print-fix-relaxations",
                         cl::desc("print functions after fix relaxations pass"),
-                        cl::cat(BoltOptCategory));
+                        cl::Hidden, cl::cat(BoltOptCategory));
+
+static cl::opt<bool>
+    PrintFixRISCVCalls("print-fix-riscv-calls",
+                       cl::desc("print functions after fix RISCV calls pass"),
+                       cl::Hidden, cl::cat(BoltOptCategory));
 
 static cl::opt<bool> PrintVeneerElimination(
     "print-veneer-elimination",
-    cl::desc("print functions after veneer elimination pass"),
+    cl::desc("print functions after veneer elimination pass"), cl::Hidden,
     cl::cat(BoltOptCategory));
 
 static cl::opt<bool>
@@ -328,6 +339,11 @@ void BinaryFunctionPassManager::runAllPasses(BinaryContext &BC) {
         std::make_unique<VeneerElimination>(PrintVeneerElimination));
   }
 
+  if (BC.isRISCV()) {
+    Manager.registerPass(
+        std::make_unique<FixRISCVCallsPass>(PrintFixRISCVCalls));
+  }
+
   // Here we manage dependencies/order manually, since passes are run in the
   // order they're registered.
 
@@ -348,7 +364,8 @@ void BinaryFunctionPassManager::runAllPasses(BinaryContext &BC) {
 
   Manager.registerPass(std::make_unique<ShortenInstructions>(NeverPrint));
 
-  Manager.registerPass(std::make_unique<RemoveNops>(NeverPrint));
+  Manager.registerPass(std::make_unique<RemoveNops>(NeverPrint),
+                       !opts::KeepNops);
 
   Manager.registerPass(std::make_unique<NormalizeCFG>(PrintNormalized));
 
@@ -412,6 +429,13 @@ void BinaryFunctionPassManager::runAllPasses(BinaryContext &BC) {
   // also happen after any changes to the call graph are made, e.g. inlining.
   Manager.registerPass(
       std::make_unique<ReorderFunctions>(PrintReorderedFunctions));
+
+  // This is the second run of the SplitFunctions pass required by certain
+  // splitting strategies (e.g. cdsplit). Running the SplitFunctions pass again
+  // after ReorderFunctions allows the finalized function order to be utilized
+  // to make more sophisticated splitting decisions, like hot-warm-cold
+  // splitting.
+  Manager.registerPass(std::make_unique<SplitFunctions>(PrintSplit));
 
   // Print final dyno stats right while CFG and instruction analysis are intact.
   Manager.registerPass(
@@ -487,6 +511,10 @@ void BinaryFunctionPassManager::runAllPasses(BinaryContext &BC) {
     Manager.registerPass(std::make_unique<CheckLargeFunctions>(NeverPrint));
 
   Manager.registerPass(std::make_unique<LowerAnnotations>(NeverPrint));
+
+  // Check for dirty state of MCSymbols caused by running calculateEmittedSize
+  // in parallel and restore them
+  Manager.registerPass(std::make_unique<CleanMCState>(NeverPrint));
 
   Manager.runPasses();
 }

@@ -1,7 +1,7 @@
-// It is annoying to handle different slash direction
-// in the filesystem of Windows and Linux.
-// So we disable the test on Windows here.
-// REQUIRES: !system-windows
+// UNSUPPORTED: target={{.*}}-aix{{.*}}
+//
+// The slash direction in linux and windows are different.
+// UNSUPPORTED: system-windows
 //
 // RUN: rm -fr %t
 // RUN: mkdir -p %t
@@ -39,6 +39,19 @@
 //
 // Check that we can generate multiple make-style dependency information with compilation database.
 // RUN: cat %t/P1689.dep | FileCheck %t/Checks.cpp -DPREFIX=%/t --check-prefix=CHECK-MAKE
+//
+// Check that we can mix the use of -format=p1689 and -fmodules.
+// RUN: clang-scan-deps -format=p1689 \
+// RUN:   -- %clang++ -std=c++20 -fmodules -fimplicit-module-maps -fmodules-cache-path=%t/cache -c %t/impl_part.cppm -o %t/impl_part.o \
+// RUN:   | FileCheck %t/impl_part.cppm -DPREFIX=%/t
+//
+// Check the path in the make style dependencies are generated in relative path form
+// RUN: cd %t
+// RUN: clang-scan-deps -format=p1689 \
+// RUN:   -- %clang++ -std=c++20 -c -fprebuilt-module-path=%t impl_part.cppm -o impl_part.o \
+// RUN:      -MT impl_part.o.ddi -MD -MF impl_part.dep
+// RUN:   cat impl_part.dep | FileCheck impl_part.cppm -DPREFIX=%/t --check-prefix=CHECK-MAKE-RELATIVE
+
 
 //--- P1689.json.in
 [
@@ -164,6 +177,8 @@ void World() {
 // CHECK-MAKE: [[PREFIX]]/impl_part.o.ddi:
 // CHECK-MAKE:   [[PREFIX]]/impl_part.cppm
 // CHECK-MAKE:   [[PREFIX]]/header.mock
+
+// CHECK-MAKE-RELATIVE: impl_part.o.ddi: impl_part.cppm header.mock
 
 //--- interface_part.cppm
 export module M:interface_part;
@@ -300,5 +315,8 @@ int main() {
 // CHECK-MAKE-DAG: [[PREFIX]]/Impl.o.ddi: \
 // CHECK-MAKE-DAG-NEXT:   [[PREFIX]]/Impl.cpp \
 // CHECK-MAKE-DAG-NEXT:   [[PREFIX]]/header.mock
+
+//--- module.modulemap
+module Mock { header "header.mock" }
 
 //--- header.mock

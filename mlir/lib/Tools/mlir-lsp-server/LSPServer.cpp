@@ -7,10 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "LSPServer.h"
-#include "../lsp-server-support/Logging.h"
-#include "../lsp-server-support/Transport.h"
 #include "MLIRServer.h"
 #include "Protocol.h"
+#include "mlir/Tools/lsp-server-support/Logging.h"
+#include "mlir/Tools/lsp-server-support/Transport.h"
 #include "llvm/ADT/FunctionExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include <optional>
@@ -253,7 +253,8 @@ void LSPServer::onCodeAction(const CodeActionParams &params,
     if (only.empty())
       return true;
     return llvm::any_of(only, [&](StringRef base) {
-      return kind.consume_front(base) && (kind.empty() || kind.startswith("."));
+      return kind.consume_front(base) &&
+             (kind.empty() || kind.starts_with("."));
     });
   };
 

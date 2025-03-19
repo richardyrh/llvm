@@ -87,15 +87,15 @@ bool VortexIntrinsicFuncLowering::runOnModule(Module &M) {
   std::set<llvm::Instruction *> vxBarCallToRemove;
   std::vector<StringRef> FTargets = {
     "vx_barrier",
-    "vx_num_threads", "vx_num_warps", "vx_num_cores", "vx_num_clusters",
-    "vx_thread_id", "vx_warp_id", "vx_core_id", "vx_cluster_id",
+    "vx_num_threads", "vx_num_warps", "vx_num_cores",
+    "vx_thread_id", "vx_warp_id", "vx_core_id",
     "vx_thread_mask", "vx_tmc"};
 
-  Type* SizeTTy_;
+  //Type* SizeTTy_;
   auto& Context = M.getContext();
 
   auto sizeTSize = M.getDataLayout().getPointerSizeInBits();
-  switch (sizeTSize) {
+  /*switch (sizeTSize) {
     case 128: SizeTTy_ = llvm::Type::getInt128Ty(Context); break;
     case 64:  SizeTTy_ = llvm::Type::getInt64Ty(Context); break;
     case 32:  SizeTTy_ = llvm::Type::getInt32Ty(Context); break;
@@ -103,20 +103,40 @@ bool VortexIntrinsicFuncLowering::runOnModule(Module &M) {
     case 8:   SizeTTy_ = llvm::Type::getInt8Ty(Context); break;
     default:
               SizeTTy_ = llvm::Type::getInt32Ty(Context); break;
+  }*/
+
+  Function *bar_func_;
+  Function *tid_func_;
+  Function *wid_func_;
+  Function *cid_func_;
+  Function *nt_func_;
+  Function *nw_func_;
+  Function *nc_func_;
+  Function* tmask_func_;
+  Function *tmc_func_;
+
+  if (sizeTSize == 64) {
+    bar_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_bar_i64);
+    tid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_tid_i64);
+    wid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_wid_i64);
+    cid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_cid_i64);
+    nt_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_nt_i64);
+    nw_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_nw_i64);
+    nc_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_nc_i64);
+    tmask_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_tmask_i64);
+    tmc_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_tmc_i64);
+  } else {
+    assert(sizeTSize == 32);
+    bar_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_bar_i32);
+    tid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_tid_i32);
+    wid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_wid_i32);
+    cid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_cid_i32);
+    nt_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_nt_i32);
+    nw_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_nw_i32);
+    nc_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_nc_i32);
+    tmask_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_tmask_i32);
+    tmc_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_tmc_i32);
   }
-
-  Function *bar_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_bar, {SizeTTy_, SizeTTy_});
-  Function *tid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_tid, {SizeTTy_});
-  Function *wid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_wid, {SizeTTy_});
-  Function *cid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_cid, {SizeTTy_});
-  Function *gid_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_gid, {SizeTTy_});
-
-  Function *nt_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_nt, {SizeTTy_});
-  Function *nw_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_nw, {SizeTTy_});
-  Function *nc_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_nc, {SizeTTy_});
-  Function *ng_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_ng, {SizeTTy_});
-  Function* tmask_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_tmask, {llvm::Type::getInt32Ty(Context)});
-  Function *tmc_func_ = Intrinsic::getDeclaration(&M, Intrinsic::riscv_vx_tmc, {SizeTTy_});
 
   // Find tharget vx intrinsic
   for (llvm::Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
@@ -159,35 +179,26 @@ bool VortexIntrinsicFuncLowering::runOnModule(Module &M) {
           CallToRemove.insert(Instr);
 
         } else if (check == 4) {
-          auto nginst = CallInst::Create(ng_func_, "nw", Instr);
-          Instr->replaceAllUsesWith(nginst);
-          CallToRemove.insert(Instr);
-
-        } else if (check == 5) {
           auto tidinst = CallInst::Create(tid_func_, "tid", Instr);
           Instr->replaceAllUsesWith(tidinst);
           CallToRemove.insert(Instr);
 
-        } else if (check == 6) {
+        } else if (check == 5) {
           auto widinst = CallInst::Create(wid_func_, "wid", Instr);
           Instr->replaceAllUsesWith(widinst);
           CallToRemove.insert(Instr);
 
-        } else if (check == 7) {
+        } else if (check == 6) {
           auto cidinst = CallInst::Create(cid_func_, "cid", Instr);
           Instr->replaceAllUsesWith(cidinst);
           CallToRemove.insert(Instr);
 
-        }  else if (check == 8) {
-          auto gidinst = CallInst::Create(gid_func_, "gid", Instr);
-          Instr->replaceAllUsesWith(gidinst);
-          CallToRemove.insert(Instr);
-        } else if (check == 9) {
+        } else if (check == 7) {
           auto tmaskinst = CallInst::Create(tmask_func_, "tmask", Instr);
           Instr->replaceAllUsesWith(tmaskinst);
           CallToRemove.insert(Instr);
 
-        } else if (check == 10) {
+        } else if (check == 8) {
           CallInst *Callinst = dyn_cast<CallInst>(Instr);
           auto tmask = Callinst->getArgOperand(0);
           auto tmcinst = CallInst::Create(tmc_func_, {tmask}, "", Instr);

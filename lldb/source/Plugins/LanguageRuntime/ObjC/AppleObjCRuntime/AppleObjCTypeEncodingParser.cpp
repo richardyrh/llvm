@@ -81,13 +81,13 @@ AppleObjCTypeEncodingParser::ReadStructElement(TypeSystemClang &ast_ctx,
 clang::QualType AppleObjCTypeEncodingParser::BuildStruct(
     TypeSystemClang &ast_ctx, StringLexer &type, bool for_expression) {
   return BuildAggregate(ast_ctx, type, for_expression, _C_STRUCT_B, _C_STRUCT_E,
-                        clang::TTK_Struct);
+                        llvm::to_underlying(clang::TagTypeKind::Struct));
 }
 
 clang::QualType AppleObjCTypeEncodingParser::BuildUnion(
     TypeSystemClang &ast_ctx, StringLexer &type, bool for_expression) {
   return BuildAggregate(ast_ctx, type, for_expression, _C_UNION_B, _C_UNION_E,
-                        clang::TTK_Union);
+                        llvm::to_underlying(clang::TagTypeKind::Union));
 }
 
 clang::QualType AppleObjCTypeEncodingParser::BuildAggregate(
@@ -234,15 +234,12 @@ clang::QualType AppleObjCTypeEncodingParser::BuildObjCObjectPointerType(
 
     auto types = decl_vendor->FindTypes(ConstString(name), /*max_matches*/ 1);
 
-// The user can forward-declare something that has no definition.  The runtime
-// doesn't prohibit this at all. This is a rare and very weird case.  We keep
-// this assert in debug builds so we catch other weird cases.
-#ifdef LLDB_CONFIGURATION_DEBUG
-    assert(!types.empty());
-#else
+    // The user can forward-declare something that has no definition.  The runtime
+    // doesn't prohibit this at all. This is a rare and very weird case.  We keep
+    // this assert in debug builds so we catch other weird cases.
+    lldbassert(!types.empty());
     if (types.empty())
       return ast_ctx.getObjCIdType();
-#endif
 
     return ClangUtil::GetQualType(types.front().GetPointerType());
   } else {

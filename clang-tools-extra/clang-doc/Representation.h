@@ -290,10 +290,6 @@ struct Info {
 
   /// Returns the basename that should be used for this Info.
   llvm::SmallString<16> getFileBaseName() const;
-
-  // Returns a reference to the parent scope (that is, the immediate parent
-  // namespace or class in which this decl resides).
-  llvm::Expected<Reference> getEnclosingScope();
 };
 
 // Info for namespaces.
@@ -354,7 +350,7 @@ struct RecordInfo : public SymbolInfo {
   void merge(RecordInfo &&I);
 
   // Type of this record (struct, class, union, interface).
-  TagTypeKind TagType = TagTypeKind::TTK_Struct;
+  TagTypeKind TagType = TagTypeKind::Struct;
 
   // Full qualified name of this record, including namespaces and template
   // specializations.
