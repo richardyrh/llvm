@@ -35,6 +35,8 @@ public:
 
   const RegisterBank &getRegBankFromRegClass(const TargetRegisterClass &RC,
                                              LLT Ty) const override;
+  const RegisterBank &getRegStripeFromRegClass(const TargetRegisterClass &RC,
+                                             LLT Ty) const override;
 
   const InstructionMapping &
   getInstrMapping(const MachineInstr &MI) const override;

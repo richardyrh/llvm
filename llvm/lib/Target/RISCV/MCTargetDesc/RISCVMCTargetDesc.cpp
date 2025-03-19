@@ -115,11 +115,11 @@ static MCTargetStreamer *createRISCVNullTargetStreamer(MCStreamer &S) {
 namespace {
 
 class RISCVMCInstrAnalysis : public MCInstrAnalysis {
-  int64_t GPRState[31] = {};
-  std::bitset<31> GPRValidMask;
+  int64_t GPRState[127] = {};
+  std::bitset<127> GPRValidMask;
 
   static bool isGPR(unsigned Reg) {
-    return Reg >= RISCV::X0 && Reg <= RISCV::X31;
+    return Reg >= RISCV::X0 && Reg <= RISCV::X127;
   }
 
   static unsigned getRegIndex(unsigned Reg) {

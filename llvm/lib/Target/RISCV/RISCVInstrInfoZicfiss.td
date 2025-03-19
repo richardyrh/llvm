@@ -29,21 +29,21 @@ let Uses = [SSP], Defs = [SSP], hasSideEffects = 0, mayLoad = 1, mayStore = 0 in
 def SSPOPCHK : RVInstI<0b100, OPC_SYSTEM, (outs), (ins GPRX1X5:$rs1), "sspopchk",
                        "$rs1"> {
   let rd = 0;
-  let imm12 = 0b110011011100;
+  let imm32 = {0b00000000000000000000, 0b110011011100};
 } // Uses = [SSP],  Defs = [SSP], hasSideEffects = 0, mayLoad = 1, mayStore = 0
 
 let Uses = [SSP], hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 def SSRDP : RVInstI<0b100, OPC_SYSTEM, (outs GPRNoX0:$rd), (ins), "ssrdp", "$rd"> {
-  let imm12 = 0b110011011100;
-  let rs1 = 0b00000;
+  let imm32 = {0b00000000000000000000, 0b110011011100};
+  let rs1 = 0b00000000;
 }
 } // Uses = [SSP], hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
 let Uses = [SSP], Defs = [SSP], hasSideEffects = 0, mayLoad = 0, mayStore = 1 in
 def SSPUSH : RVInstR<0b1100111, 0b100, OPC_SYSTEM, (outs), (ins GPRX1X5:$rs2),
                      "sspush", "$rs2"> {
-  let rd = 0b00000;
-  let rs1 = 0b00000;
+  let rd = 0b00000000;
+  let rs1 = 0b00000000;
 }
 } // Predicates = [HasStdExtZicfiss]
 

@@ -2243,17 +2243,17 @@ bool TargetLowering::SimplifyDemandedBits(
       Known = KnownBits::smax(Known0, Known1);
       break;
     case ISD::UMIN:
-    if (std::optional<bool> IsULE = KnownBits::ule(Known0, Known1))
-      return TLO.CombineTo(Op, *IsULE ? Op0 : Op1);
-    if (std::optional<bool> IsULT = KnownBits::ult(Known0, Known1))
-      return TLO.CombineTo(Op, *IsULT ? Op0 : Op1);
+      if (std::optional<bool> IsULE = KnownBits::ule(Known0, Known1))
+        return TLO.CombineTo(Op, *IsULE ? Op0 : Op1);
+      if (std::optional<bool> IsULT = KnownBits::ult(Known0, Known1))
+        return TLO.CombineTo(Op, *IsULT ? Op0 : Op1);
       Known = KnownBits::umin(Known0, Known1);
     break;
     case ISD::UMAX:
-    if (std::optional<bool> IsUGE = KnownBits::uge(Known0, Known1))
-      return TLO.CombineTo(Op, *IsUGE ? Op0 : Op1);
-    if (std::optional<bool> IsUGT = KnownBits::ugt(Known0, Known1))
-      return TLO.CombineTo(Op, *IsUGT ? Op0 : Op1);
+      if (std::optional<bool> IsUGE = KnownBits::uge(Known0, Known1))
+        return TLO.CombineTo(Op, *IsUGE ? Op0 : Op1);
+      if (std::optional<bool> IsUGT = KnownBits::ugt(Known0, Known1))
+        return TLO.CombineTo(Op, *IsUGT ? Op0 : Op1);
       Known = KnownBits::umax(Known0, Known1);
       break;
     }

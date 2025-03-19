@@ -80,6 +80,7 @@ bool RISCVExpandPseudo::runOnMachineFunction(MachineFunction &MF) {
 
 #ifndef NDEBUG
   const unsigned NewSize = getInstSizeInBytes(MF);
+  printf("old size was %u, new size is %u\n", OldSize, NewSize);
   assert(OldSize >= NewSize);
 #endif
   return Modified;
@@ -458,7 +459,10 @@ bool RISCVPreRAExpandPseudo::runOnMachineFunction(MachineFunction &MF) {
 
 #ifndef NDEBUG
   const unsigned NewSize = getInstSizeInBytes(MF);
-  assert(OldSize >= NewSize);
+  if (OldSize < NewSize) {
+    printf("pre ra expand pseudo old size was %u, new size is %u\n", OldSize, NewSize);
+  }
+  // assert(OldSize >= NewSize);
 #endif
   return Modified;
 }

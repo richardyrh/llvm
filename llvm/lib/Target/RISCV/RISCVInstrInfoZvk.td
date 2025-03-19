@@ -43,7 +43,7 @@ multiclass VCLMUL_MV_V_X<string opcodestr, bits<6> funct6> {
 
 class RVInstIVI_VROR<bits<6> funct6, dag outs, dag ins, string opcodestr,
                      string argstr>
-    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR3> {
   bits<5> vs2;
   bits<6> imm;
   bits<5> vd;

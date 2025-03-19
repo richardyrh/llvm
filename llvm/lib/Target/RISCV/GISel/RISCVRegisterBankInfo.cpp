@@ -117,6 +117,75 @@ RISCVRegisterBankInfo::getRegBankFromRegClass(const TargetRegisterClass &RC,
   }
 }
 
+const RegisterBank &
+RISCVRegisterBankInfo::getRegStripeFromRegClass(const TargetRegisterClass &RC,
+                                                LLT Ty) const {
+  constexpr uint32_t InvalidRegBankID = uint32_t(RISCV::InvalidRegBankID) & 15;
+  static const uint32_t RegClass2RegStripe[7] = {
+    (uint32_t(InvalidRegBankID) << 0) | // FPR16RegClassID
+    (uint32_t(InvalidRegBankID) << 4) |
+    (uint32_t(InvalidRegBankID) << 8) |
+    (uint32_t(InvalidRegBankID) << 12) |
+    (uint32_t(InvalidRegBankID) << 16) |
+    (uint32_t(InvalidRegBankID) << 20) |
+    (uint32_t(InvalidRegBankID) << 24) |
+    (uint32_t(InvalidRegBankID) << 28),
+    (uint32_t(InvalidRegBankID) << 0) |
+    (uint32_t(InvalidRegBankID) << 4) |
+    (uint32_t(RISCV::GPRSRegStripe0ID) << 8) | // GPRB0RegClassID
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 12) | // GPRB1RegClassID
+    (uint32_t(RISCV::GPRSRegStripe2ID) << 16) | // GPRB2RegClassID
+    (uint32_t(RISCV::GPRSRegStripe3ID) << 20) | // GPRB3RegClassID
+    (uint32_t(RISCV::GPRSRegStripe0ID) << 24) | // GPRB0_and_GPRNoX0RegClassID
+    (uint32_t(RISCV::GPRSRegStripe2ID) << 28), // GPRB2_and_GPRJALRRegClassID
+    (uint32_t(RISCV::GPRSRegStripe3ID) << 0) | // GPRB3_and_GPRJALRRegClassID
+    (uint32_t(RISCV::GPRSRegStripe0ID) << 4) | // GPRB0_and_GPRJALRRegClassID
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 8) | // GPRB1_and_GPRJALRRegClassID
+    (uint32_t(RISCV::FPRSRegStripe0ID) << 12) | // FPRB0RegClassID
+    (uint32_t(RISCV::FPRSRegStripe1ID) << 16) | // FPRB1RegClassID
+    (uint32_t(RISCV::FPRSRegStripe2ID) << 20) | // FPRB2RegClassID
+    (uint32_t(RISCV::FPRSRegStripe3ID) << 24) | // FPRB3RegClassID
+    (uint32_t(RISCV::GPRSRegStripe2ID) << 28), // GPRB2_and_GPRTCRegClassID
+    (uint32_t(RISCV::GPRSRegStripe3ID) << 0) | // GPRB3_and_GPRTCRegClassID
+    (uint32_t(RISCV::GPRSRegStripe0ID) << 4) | // GPRB0_and_GPRTCRegClassID
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 8) | // GPRB1_and_GPRTCRegClassID
+    (uint32_t(InvalidRegBankID) << 12) |
+    (uint32_t(InvalidRegBankID) << 16) |
+    (uint32_t(InvalidRegBankID) << 20) |
+    (uint32_t(InvalidRegBankID) << 24) |
+    (uint32_t(InvalidRegBankID) << 28),
+    (uint32_t(RISCV::FPRSRegStripe0ID) << 0) | // FPR32C_and_FPRB0RegClassID
+    (uint32_t(RISCV::FPRSRegStripe1ID) << 4) | // FPR32C_and_FPRB1RegClassID
+    (uint32_t(RISCV::FPRSRegStripe2ID) << 8) | // FPR32C_and_FPRB2RegClassID
+    (uint32_t(RISCV::FPRSRegStripe3ID) << 12) | // FPR32C_and_FPRB3RegClassID
+    (uint32_t(RISCV::GPRSRegStripe0ID) << 16) | // GPRB0_and_GPRCRegClassID
+    (uint32_t(RISCV::GPRSRegStripe0ID) << 20) | // GPRB0_and_SR07RegClassID
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 24) | // GPRB1_and_GPRCRegClassID
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 28), // GPRB1_and_SR07RegClassID
+    (uint32_t(RISCV::GPRSRegStripe2ID) << 0) | // GPRB2_and_GPRCRegClassID
+    (uint32_t(RISCV::GPRSRegStripe2ID) << 4) | // GPRB2_and_SR07RegClassID
+    (uint32_t(RISCV::GPRSRegStripe3ID) << 8) | // GPRB3_and_GPRCRegClassID
+    (uint32_t(RISCV::GPRSRegStripe3ID) << 12) | // GPRB3_and_SR07RegClassID
+    (uint32_t(InvalidRegBankID) << 16) |
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 20) | // GPRX1X5RegClassID
+    (uint32_t(RISCV::GPRSRegStripe0ID) << 24) | // GPRC_and_GPRB0_and_GPRTCRegClassID
+    (uint32_t(RISCV::GPRSRegStripe0ID) << 28), // GPRC_and_GPRB0_and_SR07RegClassID
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 0) | // GPRC_and_GPRB1_and_GPRTCRegClassID
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 4) | // GPRC_and_GPRB1_and_SR07RegClassID
+    (uint32_t(RISCV::GPRSRegStripe0ID) << 8) | // GPRX0RegClassID
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 12) | // GPRX1RegClassID
+    (uint32_t(RISCV::GPRSRegStripe1ID) << 16) | // GPRX5RegClassID
+    (uint32_t(RISCV::GPRSRegStripe2ID) << 20) // SPRegClassID
+  };
+  const unsigned RegClassID = RC.getID();
+  if (LLVM_LIKELY(RegClassID < 54)) {
+    unsigned RegBankID = (RegClass2RegStripe[RegClassID / 8] >> ((RegClassID % 8) * 4)) & 15;
+    if (RegBankID != InvalidRegBankID)
+      return getRegStripe(RegBankID);
+  }
+  return llvm::RISCV::UnassignedRegStripe;
+}
+
 static const RegisterBankInfo::ValueMapping *getFPValueMapping(unsigned Size) {
   assert(Size == 32 || Size == 64);
   unsigned Idx = Size == 64 ? RISCV::FPRB64Idx : RISCV::FPRB32Idx;
@@ -400,12 +469,12 @@ RISCVRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   }
   case TargetOpcode::G_FPTOSI:
   case TargetOpcode::G_FPTOUI:
-  case RISCV::G_FCLASS: {
-    LLT Ty = MRI.getType(MI.getOperand(1).getReg());
-    OpdsMapping[0] = GPRValueMapping;
-    OpdsMapping[1] = getFPValueMapping(Ty.getSizeInBits());
-    break;
-  }
+  // case RISCV::G_FCLASS: {
+  //   LLT Ty = MRI.getType(MI.getOperand(1).getReg());
+  //   OpdsMapping[0] = GPRValueMapping;
+  //   OpdsMapping[1] = getFPValueMapping(Ty.getSizeInBits());
+  //   break;
+  // }
   case TargetOpcode::G_SITOFP:
   case TargetOpcode::G_UITOFP: {
     LLT Ty = MRI.getType(MI.getOperand(0).getReg());

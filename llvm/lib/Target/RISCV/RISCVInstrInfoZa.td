@@ -42,7 +42,7 @@ def GPRPairRV64 : RegisterOperand<GPRPair> {
 let hasSideEffects = 0, mayLoad = 1, mayStore = 1, Constraints = "$rd = $rd_wb" in
 class AMO_cas<bits<5> funct5, bit aq, bit rl, bits<3> funct3, string opcodestr,
               DAGOperand RC>
-    : RVInstRAtomic<funct5, aq, rl, funct3, OPC_AMO,
+    : RVInstR3Atomic<funct5, aq, rl, funct3, 0b00, OPC_AMO,
                     (outs RC:$rd_wb), (ins RC:$rd, GPRMemZeroOffset:$rs1, RC:$rs2),
                     opcodestr, "$rd, $rs2, $rs1">;
 
@@ -127,7 +127,7 @@ class WRSInst<bits<12> funct12, string opcodestr>
     : RVInstI<0b000, OPC_SYSTEM, (outs), (ins), opcodestr, ""> {
   let rs1 = 0;
   let rd = 0;
-  let imm12 = funct12;
+  let imm32 = {0b00000000000000000000, funct12};
 }
 
 let Predicates = [HasStdExtZawrs] in {

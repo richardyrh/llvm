@@ -2197,7 +2197,7 @@ bool Type::hasFloatingRepresentation() const {
     return VT->getElementType()->isFloatingType();
   if (const auto *MT = dyn_cast<MatrixType>(CanonicalType))
     return MT->getElementType()->isFloatingType();
-    return isFloatingType();
+  return isFloatingType();
 }
 
 bool Type::isRealFloatingType() const {

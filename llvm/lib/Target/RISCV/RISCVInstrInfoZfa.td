@@ -58,8 +58,8 @@ class FPFLI_r<bits<7> funct7, bits<5> rs2val, bits<3> funct3,
               (ins loadfpimm:$imm), opcodestr, "$rd, $imm"> {
   bits<5> imm;
 
-  let rs2 = rs2val;
-  let rs1 = imm;
+  let rs2 = {0b000, rs2val};
+  let rs1 = {0b000, imm};
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1,
@@ -69,7 +69,7 @@ class FPUnaryOp_r_rtz<bits<7> funct7, bits<5> rs2val, DAGOperand rdty,
     : RVInstRFrm<funct7, OPC_OP_FP, (outs rdty:$rd),
                  (ins rs1ty:$rs1, rtzarg:$frm), opcodestr,
                   "$rd, $rs1$frm"> {
-  let rs2 = rs2val;
+  let rs2 = {0b000, rs2val};
 }
 
 //===----------------------------------------------------------------------===//

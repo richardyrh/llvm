@@ -738,37 +738,37 @@ void PassBuilder::addPreInlinerPasses(ModulePassManager &MPM,
   assert(Level != OptimizationLevel::O0 && "Not expecting O0 here!");
   if (DisablePreInliner)
     return;
-    InlineParams IP;
+  InlineParams IP;
 
-    IP.DefaultThreshold = PreInlineThreshold;
+  IP.DefaultThreshold = PreInlineThreshold;
 
-    // FIXME: The hint threshold has the same value used by the regular inliner
-    // when not optimzing for size. This should probably be lowered after
-    // performance testing.
-    // FIXME: this comment is cargo culted from the old pass manager, revisit).
-    IP.HintThreshold = Level.isOptimizingForSize() ? PreInlineThreshold : 325;
-    ModuleInlinerWrapperPass MIWP(
-        IP, /* MandatoryFirst */ true,
-        InlineContext{LTOPhase, InlinePass::EarlyInliner});
-    CGSCCPassManager &CGPipeline = MIWP.getPM();
+  // FIXME: The hint threshold has the same value used by the regular inliner
+  // when not optimzing for size. This should probably be lowered after
+  // performance testing.
+  // FIXME: this comment is cargo culted from the old pass manager, revisit).
+  IP.HintThreshold = Level.isOptimizingForSize() ? PreInlineThreshold : 325;
+  ModuleInlinerWrapperPass MIWP(
+      IP, /* MandatoryFirst */ true,
+      InlineContext{LTOPhase, InlinePass::EarlyInliner});
+  CGSCCPassManager &CGPipeline = MIWP.getPM();
 
-    FunctionPassManager FPM;
-    FPM.addPass(SROAPass(SROAOptions::ModifyCFG));
-    FPM.addPass(EarlyCSEPass()); // Catch trivial redundancies.
-    FPM.addPass(SimplifyCFGPass(SimplifyCFGOptions().convertSwitchRangeToICmp(
-        true)));                    // Merge & remove basic blocks.
-    FPM.addPass(InstCombinePass()); // Combine silly sequences.
-    invokePeepholeEPCallbacks(FPM, Level);
+  FunctionPassManager FPM;
+  FPM.addPass(SROAPass(SROAOptions::ModifyCFG));
+  FPM.addPass(EarlyCSEPass()); // Catch trivial redundancies.
+  FPM.addPass(SimplifyCFGPass(SimplifyCFGOptions().convertSwitchRangeToICmp(
+      true)));                    // Merge & remove basic blocks.
+  FPM.addPass(InstCombinePass()); // Combine silly sequences.
+  invokePeepholeEPCallbacks(FPM, Level);
 
-    CGPipeline.addPass(createCGSCCToFunctionPassAdaptor(
-        std::move(FPM), PTO.EagerlyInvalidateAnalyses));
+  CGPipeline.addPass(createCGSCCToFunctionPassAdaptor(
+      std::move(FPM), PTO.EagerlyInvalidateAnalyses));
 
-    MPM.addPass(std::move(MIWP));
+  MPM.addPass(std::move(MIWP));
 
-    // Delete anything that is now dead to make sure that we don't instrument
-    // dead code. Instrumentation can end up keeping dead code around and
-    // dramatically increase code size.
-    MPM.addPass(GlobalDCEPass());
+  // Delete anything that is now dead to make sure that we don't instrument
+  // dead code. Instrumentation can end up keeping dead code around and
+  // dramatically increase code size.
+  MPM.addPass(GlobalDCEPass());
 }
 
 void PassBuilder::addPGOInstrPasses(ModulePassManager &MPM,
@@ -1026,21 +1026,21 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
   // frontend. Not necessary with LTO post link pipelines since the pre link
   // pipeline already cleaned up the frontend output.
   if (Phase != ThinOrFullLTOPhase::ThinLTOPostLink) {
-  // Do basic inference of function attributes from known properties of system
-  // libraries and other oracles.
-  MPM.addPass(InferFunctionAttrsPass());
-  MPM.addPass(CoroEarlyPass());
+    // Do basic inference of function attributes from known properties of system
+    // libraries and other oracles.
+    MPM.addPass(InferFunctionAttrsPass());
+    MPM.addPass(CoroEarlyPass());
 
-  FunctionPassManager EarlyFPM;
-  // Lower llvm.expect to metadata before attempting transforms.
-    // Compare/branch metadata may alter the behavior of passes like
-    // SimplifyCFG.
-  EarlyFPM.addPass(LowerExpectIntrinsicPass());
-  EarlyFPM.addPass(SimplifyCFGPass());
-  EarlyFPM.addPass(SROAPass(SROAOptions::ModifyCFG));
-  EarlyFPM.addPass(EarlyCSEPass());
-  if (Level == OptimizationLevel::O3)
-    EarlyFPM.addPass(CallSiteSplittingPass());
+    FunctionPassManager EarlyFPM;
+    // Lower llvm.expect to metadata before attempting transforms.
+      // Compare/branch metadata may alter the behavior of passes like
+      // SimplifyCFG.
+    EarlyFPM.addPass(LowerExpectIntrinsicPass());
+    EarlyFPM.addPass(SimplifyCFGPass());
+    EarlyFPM.addPass(SROAPass(SROAOptions::ModifyCFG));
+    EarlyFPM.addPass(EarlyCSEPass());
+    if (Level == OptimizationLevel::O3)
+      EarlyFPM.addPass(CallSiteSplittingPass());
     MPM.addPass(createModuleToFunctionPassAdaptor(
         std::move(EarlyFPM), PTO.EagerlyInvalidateAnalyses));
   }
@@ -1284,7 +1284,7 @@ void PassBuilder::addVectorPasses(OptimizationLevel Level,
 
   if (EnableInferAlignmentPass)
     FPM.addPass(InferAlignmentPass());
-    FPM.addPass(InstCombinePass());
+  FPM.addPass(InstCombinePass());
 
   // This is needed for two reasons:
   //   1. It works around problems that instcombine introduces, such as sinking
@@ -1292,10 +1292,10 @@ void PassBuilder::addVectorPasses(OptimizationLevel Level,
   //      divide result.
   //   2. It helps to clean up some loop-invariant code created by the loop
   //      unroll pass when IsFullLTO=false.
-    FPM.addPass(createFunctionToLoopPassAdaptor(
-        LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
-                 /*AllowSpeculation=*/true),
-      /*UseMemorySSA=*/true, /*UseBlockFrequencyInfo=*/false));
+  FPM.addPass(createFunctionToLoopPassAdaptor(
+      LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
+               /*AllowSpeculation=*/true),
+    /*UseMemorySSA=*/true, /*UseBlockFrequencyInfo=*/false));
 
   // Now that we've vectorized and unrolled loops, we may have more refined
   // alignment information, try to re-derive it here.

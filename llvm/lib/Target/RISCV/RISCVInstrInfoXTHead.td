@@ -165,7 +165,7 @@ class THCacheInst_r<bits<5> funct5, string opcodestr>
     : RVInstR<0b0000001, 0, OPC_CUSTOM_0, (outs), (ins GPR:$rs1),
               opcodestr, "$rs1"> {
   let rd = 0;
-  let rs2 = funct5;
+  let rs2 = {0b000, funct5};
 }
 
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
@@ -180,7 +180,7 @@ class THCacheInst_void<bits<5> funct5, string opcodestr>
     : RVInstR<0b0000000, 0, OPC_CUSTOM_0, (outs), (ins), opcodestr, ""> {
   let rd = 0;
   let rs1 = 0;
-  let rs2 = funct5;
+  let rs2 = {0b000, funct5};
 }
 
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {

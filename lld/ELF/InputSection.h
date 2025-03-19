@@ -117,7 +117,7 @@ struct RelaxAux {
   std::unique_ptr<uint32_t[]> relocDeltas;
   // For relocations[i], the actual type is relocTypes[i].
   std::unique_ptr<RelType[]> relocTypes;
-  SmallVector<uint32_t, 0> writes;
+  SmallVector<uint64_t, 0> writes;
 };
 
 // This corresponds to a section of an input file.
