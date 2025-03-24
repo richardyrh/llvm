@@ -28,7 +28,9 @@
 
 using namespace llvm;
 
-static cl::opt<bool> RelaxBranches("riscv-asm-relax-branches", cl::init(true),
+#define MU_DEBUG
+
+static cl::opt<bool> RelaxBranches("riscv-asm-relax-branches", cl::init(false),
                                    cl::Hidden);
 // Temporary workaround for old linkers that do not support ULEB128 relocations,
 // which are abused by DWARF v5 DW_LLE_offset_pair/DW_RLE_offset_pair
@@ -87,10 +89,10 @@ RISCVAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
       {"fixup_riscv_relax", 0, 0, 0},
       {"fixup_riscv_align", 0, 0, 0},
 
-      {"fixup_riscv_tlsdesc_hi20", 12, 20,
+      {"fixup_riscv_tlsdesc_hi20", 0, 64,
        MCFixupKindInfo::FKF_IsPCRel | MCFixupKindInfo::FKF_IsTarget},
-      {"fixup_riscv_tlsdesc_load_lo12", 20, 12, 0},
-      {"fixup_riscv_tlsdesc_add_lo12", 20, 12, 0},
+      {"fixup_riscv_tlsdesc_load_lo12", 0, 64, 0},
+      {"fixup_riscv_tlsdesc_add_lo12", 0, 64, 0},
       {"fixup_riscv_tlsdesc_call", 0, 0, 0},
   };
   static_assert((std::size(Infos)) == RISCV::NumTargetFixupKinds,
@@ -197,6 +199,10 @@ void RISCVAsmBackend::relaxInstruction(MCInst &Inst,
   case RISCV::BGE:
   case RISCV::BLTU:
   case RISCV::BGEU:
+#ifdef MU_DEBUG
+    llvm::outs() << "relax branch\n";
+#endif
+    llvm_unreachable("this is new in llvm 18 and breaks things, dont use");
     Res.setOpcode(getRelaxedOpcode(Inst.getOpcode()));
     Res.addOperand(Inst.getOperand(0));
     Res.addOperand(Inst.getOperand(1));
@@ -661,13 +667,13 @@ void RISCVAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
                                  bool IsResolved,
                                  const MCSubtargetInfo *STI) const {
   MCFixupKind Kind = Fixup.getKind();
-#ifdef MU_DEBUG
-  llvm::outs() << "applying fixup kind " << Kind << "\n";
-#endif
   if (Kind >= FirstLiteralRelocationKind)
     return;
   MCContext &Ctx = Asm.getContext();
   MCFixupKindInfo Info = getFixupKindInfo(Kind);
+#ifdef MU_DEBUG
+  llvm::outs() << "applying fixup kind " << Info.Name << "\n";
+#endif
   if (!Value)
     return; // Doesn't change encoding.
   // Apply any target-specific value adjustments.
