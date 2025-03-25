@@ -28,8 +28,6 @@
 
 using namespace llvm;
 
-#define MU_DEBUG
-
 static cl::opt<bool> RelaxBranches("riscv-asm-relax-branches", cl::init(false),
                                    cl::Hidden);
 // Temporary workaround for old linkers that do not support ULEB128 relocations,
