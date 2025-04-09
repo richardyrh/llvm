@@ -1,5 +1,0 @@
-Call `make` to build every .c file in tests/ and create two versions baseline.s and modified.s in the build/ directory, and run it with eval.py to output all stats in results.csv
-
-Call `make FILE=path_to_file.c` to build baseline and modified for that file, and run just those files with the eval script. NOTE that this does not create a CSV, just prints to terminal
-
-Use CC_BASELINE and CC_MODIFIED to point to your clang installations
