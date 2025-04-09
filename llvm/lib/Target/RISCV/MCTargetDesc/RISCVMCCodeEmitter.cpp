@@ -89,6 +89,10 @@ public:
                              SmallVectorImpl<MCFixup> &Fixups,
                              const MCSubtargetInfo &STI) const;
 
+  unsigned getImmOpValueMinus1(const MCInst &MI, unsigned OpNo,
+                               SmallVectorImpl<MCFixup> &Fixups,
+                               const MCSubtargetInfo &STI) const;
+
   unsigned getImmOpValue(const MCInst &MI, unsigned OpNo,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const;
@@ -417,6 +421,19 @@ RISCVMCCodeEmitter::getImmOpValueAsr3(const MCInst &MI, unsigned OpNo,
     assert((Res & 7) == 0 && "LSB is non-zero");
     return Res; // now we explicitly encode the 3 zeros
     // return Res >> 3;
+  }
+
+  return getImmOpValue(MI, OpNo, Fixups, STI);
+}
+
+unsigned
+RISCVMCCodeEmitter::getImmOpValueMinus1(const MCInst &MI, unsigned OpNo,
+                                        SmallVectorImpl<MCFixup> &Fixups,
+                                        const MCSubtargetInfo &STI) const {
+  const MCOperand &MO = MI.getOperand(OpNo);
+
+  if (MO.isImm()) {
+    return MO.getImm() - 1;
   }
 
   return getImmOpValue(MI, OpNo, Fixups, STI);

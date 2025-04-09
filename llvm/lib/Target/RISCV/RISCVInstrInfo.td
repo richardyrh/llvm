@@ -309,6 +309,22 @@ def uimm32_auipc : UImm32Operand {
   let ParserMatchClass = UImmAsmOperand<32, "AUIPC">;
 }
 
+// def uimm6_plus1 : ImmLeaf<XLenVT, [{return isUInt<6>(Imm - 1)}]> {
+// def uimm6_plus1 : Operand<XLenVT> {
+
+def uimm6_plus1 : RISCVOp, ImmLeaf<XLenVT, [{return isUInt<6>(Imm - 1);}]> {
+  let ParserMatchClass = UImmAsmOperand<7, "PLUS1">;
+  let EncoderMethod = "getImmOpValueMinus1";
+  let DecoderMethod = "decodeUImmOperandPlus1<6>";
+  let MCOperandPredicate = [{
+    int64_t Imm;
+    if (MCOp.evaluateAsConstantImm(Imm))
+      return (Imm > 0) && isUInt<6>(Imm - 1);
+    return MCOp.isBareSymbolRef();
+  }];
+  let OperandType = "OPERAND_UIMM6_PLUS1";
+}
+
 def Simm32Lsb000JALAsmOperand : SImmAsmOperand<32, "Lsb000JAL"> {
   let ParserMethod = "parseJALOffset";
 }
@@ -2265,6 +2281,7 @@ include "RISCVInstrInfoXVentana.td"
 include "RISCVInstrInfoXTHead.td"
 // include "RISCVInstrInfoXCV.td"
 include "RISCVInstrInfoVX.td"
+include "RISCVInstrInfoNU.td"
 
 //===----------------------------------------------------------------------===//
 // Global ISel

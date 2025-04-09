@@ -711,6 +711,17 @@ public:
   bool isUImm8() const { return IsUImm<8>(); }
   bool isUImm20() const { return IsUImm<20>(); }
 
+  bool isUImm7PLUS1() const {
+    // should actually be range of uimm6 plus 1
+    int64_t Imm;
+    RISCVMCExpr::VariantKind VK = RISCVMCExpr::VK_RISCV_None;
+    if (!isImm())
+      return false;
+    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
+    return IsConstantImm && isUInt<6>(Imm - 1) && Imm >= 1 &&
+           VK == RISCVMCExpr::VK_RISCV_None;
+  }
+
   bool isUImm8GE32() const {
     int64_t Imm;
     RISCVMCExpr::VariantKind VK = RISCVMCExpr::VK_RISCV_None;
@@ -1694,6 +1705,9 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     return generateImmOutOfRangeError(Operands, ErrorInfo, -(1 << 4) + 1,
                                       (1 << 4),
                                       "immediate must be in the range");
+  }
+  case Match_InvalidUImm7PLUS1: {
+    return generateImmOutOfRangeError(Operands, ErrorInfo, 1, (1 << 6));
   }
   case Match_InvalidRlist: {
     SMLoc ErrorLoc = ((RISCVOperand &)*Operands[ErrorInfo]).getStartLoc();

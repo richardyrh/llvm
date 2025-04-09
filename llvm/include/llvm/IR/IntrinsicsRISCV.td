@@ -144,6 +144,31 @@ let TargetPrefix = "riscv" in {
   defm int_riscv_vx_mov   : VortexD1S1Intrinsics;
   defm int_riscv_vx_bar  : VortexD0S2Intrinsics;
 
+
+  class NeutrinoIntrinsics
+      : Intrinsic<[llvm_i32_ty],
+                  [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                  [IntrNoMem, ImmArg<ArgIndex<4>>, IntrHasSideEffects, IntrConvergent, IntrWillReturn]>;
+
+  def int_riscv_nu_invoke_ri_pt_async: NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rh_pt_async: NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rm_pt_async: NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_ri_pw_async: NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rh_pw_async: NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rm_pw_async: NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_ri_pc_async: NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rh_pc_async: NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rm_pc_async: NeutrinoIntrinsics;
+
+  def int_riscv_nu_invoke_ri_pt_sync : NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rh_pt_sync : NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rm_pt_sync : NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_ri_pw_sync : NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rh_pw_sync : NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rm_pw_sync : NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_ri_pc_sync : NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rh_pc_sync : NeutrinoIntrinsics;
+  def int_riscv_nu_invoke_rm_pc_sync : NeutrinoIntrinsics;
 } // TargetPrefix = "riscv"
 
 //===----------------------------------------------------------------------===//
