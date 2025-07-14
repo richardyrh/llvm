@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -29,6 +30,7 @@
 #include <new>
 #include <type_traits>
 #include <utility>
+
 
 namespace llvm {
 
