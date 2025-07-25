@@ -200,7 +200,6 @@ void RISCVAsmBackend::relaxInstruction(MCInst &Inst,
 #ifdef MU_DEBUG
     llvm::outs() << "relax branch\n";
 #endif
-    llvm_unreachable("this is new in llvm 18 and breaks things, dont use");
     Res.setOpcode(getRelaxedOpcode(Inst.getOpcode()));
     Res.addOperand(Inst.getOperand(0));
     Res.addOperand(Inst.getOperand(1));
