@@ -19,6 +19,13 @@
 #define FP_ILOGB0 (-__INT_MAX__ - 1)
 #define FP_ILOGBNAN __INT_MAX__
 
+// Floating point classification constants
+#define FP_NAN 0
+#define FP_INFINITE 1
+#define FP_ZERO 2
+#define FP_SUBNORMAL 3
+#define FP_NORMAL 4
+
 #define isfinite(x) __builtin_isfinite(x)
 #define isinf(x) __builtin_isinf(x)
 #define isnan(x) __builtin_isnan(x)
