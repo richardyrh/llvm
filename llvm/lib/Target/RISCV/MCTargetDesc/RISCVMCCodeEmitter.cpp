@@ -272,6 +272,7 @@ void RISCVMCCodeEmitter::expandLongCondBr(const MCInst &MI,
 
   uint32_t Offset;
   if (UseCompressedBr) {
+    llvm_unreachable("Compressed branches not supported in 64bit Muon");
     unsigned InvOpc =
         Opcode == RISCV::PseudoLongBNE ? RISCV::C_BEQZ : RISCV::C_BNEZ;
     MCInst TmpInst = MCInstBuilder(InvOpc).addReg(SrcReg1).addImm(6);
@@ -281,10 +282,10 @@ void RISCVMCCodeEmitter::expandLongCondBr(const MCInst &MI,
   } else {
     unsigned InvOpc = getInvertedBranchOp(Opcode);
     MCInst TmpInst =
-        MCInstBuilder(InvOpc).addReg(SrcReg1).addReg(SrcReg2).addImm(8);
+        MCInstBuilder(InvOpc).addReg(SrcReg1).addReg(SrcReg2).addImm(16);
     uint32_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
     support::endian::write(CB, Binary, llvm::endianness::little);
-    Offset = 4;
+    Offset = 8;
   }
 
   // Emit an unconditional jump to the destination.

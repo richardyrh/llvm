@@ -550,8 +550,8 @@ class BranchCC_rri<bits<3> funct3, string opcodestr>
 }
 
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
-class Load_ri<bits<3> funct3, string opcodestr>
-    : RVInstI2<funct3, 0, OPC_LOAD, (outs GPR:$rd), (ins GPRMem:$rs1, simm32:$imm32),
+class Load_ri<bits<3> funct3, bits<2> addrspace, string opcodestr>
+    : RVInstI2<funct3, addrspace, OPC_LOAD, (outs GPR:$rd), (ins GPRMem:$rs1, simm32:$imm32),
                opcodestr, "$rd, ${imm32}(${rs1})">;
 
 // unused, hypervisor instructions
@@ -566,8 +566,8 @@ class HLoad_r<bits<7> funct7, bits<5> funct5, string opcodestr>
 // reflecting the order these fields are specified in the instruction
 // encoding.
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
-class Store_rri<bits<3> funct3, string opcodestr>
-    : RVInstS<funct3, 0, OPC_STORE, (outs),
+class Store_rri<bits<3> funct3, bits<2> addrspace, string opcodestr>
+    : RVInstS<funct3, addrspace, OPC_STORE, (outs),
               (ins GPR:$rs2, GPRMem:$rs1, simm32:$imm32),
               opcodestr, "$rs2, ${imm32}(${rs1})">;
 
@@ -671,17 +671,28 @@ def BGE  : BranchCC_rri<0b101, "bge">;
 def BLTU : BranchCC_rri<0b110, "bltu">;
 def BGEU : BranchCC_rri<0b111, "bgeu">;
 
-let IsSignExtendingOpW = 1 in {
-def LB  : Load_ri<0b000, "lb">, Sched<[WriteLDB, ReadMemBase]>;
-def LH  : Load_ri<0b001, "lh">, Sched<[WriteLDH, ReadMemBase]>;
-def LW  : Load_ri<0b010, "lw">, Sched<[WriteLDW, ReadMemBase]>;
-def LBU : Load_ri<0b100, "lbu">, Sched<[WriteLDB, ReadMemBase]>;
-def LHU : Load_ri<0b101, "lhu">, Sched<[WriteLDH, ReadMemBase]>;
+// Radiance: multiclass for all address space qualifier for memory instructions
+multiclass Load_ri_class <bits<3> funct3, string opcodestr> {
+  def ""      : Load_ri<funct3, 0b00, !strconcat(opcodestr, ".global")>;
+  def _shared : Load_ri<funct3, 0b01, !strconcat(opcodestr, ".shared")>;
 }
 
-def SB : Store_rri<0b000, "sb">, Sched<[WriteSTB, ReadStoreData, ReadMemBase]>;
-def SH : Store_rri<0b001, "sh">, Sched<[WriteSTH, ReadStoreData, ReadMemBase]>;
-def SW : Store_rri<0b010, "sw">, Sched<[WriteSTW, ReadStoreData, ReadMemBase]>;
+multiclass Store_rri_class<bits<3> funct3, string opcodestr> {
+  def ""      : Store_rri<funct3, 0b00, !strconcat(opcodestr, ".global")>;
+  def _shared : Store_rri<funct3, 0b01, !strconcat(opcodestr, ".shared")>;
+}
+
+let IsSignExtendingOpW = 1 in {
+defm LB  : Load_ri_class<0b000, "lb">, Sched<[WriteLDB, ReadMemBase]>;
+defm LH  : Load_ri_class<0b001, "lh">, Sched<[WriteLDH, ReadMemBase]>;
+defm LW  : Load_ri_class<0b010, "lw">, Sched<[WriteLDW, ReadMemBase]>;
+defm LBU : Load_ri_class<0b100, "lbu">, Sched<[WriteLDB, ReadMemBase]>;
+defm LHU : Load_ri_class<0b101, "lhu">, Sched<[WriteLDH, ReadMemBase]>;
+}
+
+defm SB : Store_rri_class<0b000, "sb">, Sched<[WriteSTB, ReadStoreData, ReadMemBase]>;
+defm SH : Store_rri_class<0b001, "sh">, Sched<[WriteSTH, ReadStoreData, ReadMemBase]>;
+defm SW : Store_rri_class<0b010, "sw">, Sched<[WriteSTW, ReadStoreData, ReadMemBase]>;
 
 // ADDI isn't always rematerializable, but isReMaterializable will be used as
 // a hint which is verified in isReallyTriviallyReMaterializable.
@@ -792,9 +803,9 @@ def CSRRCI : CSR_ii<0b111, "csrrci">;
 /// RV64I instructions
 
 let Predicates = [IsRV64] in {
-def LWU   : Load_ri<0b110, "lwu">, Sched<[WriteLDW, ReadMemBase]>;
-def LD    : Load_ri<0b011, "ld">, Sched<[WriteLDD, ReadMemBase]>;
-def SD    : Store_rri<0b011, "sd">, Sched<[WriteSTD, ReadStoreData, ReadMemBase]>;
+def LWU   : Load_ri<0b110, 0b00, "lwu">, Sched<[WriteLDW, ReadMemBase]>;
+def LD    : Load_ri<0b011, 0b00, "ld">, Sched<[WriteLDD, ReadMemBase]>;
+def SD    : Store_rri<0b011, 0b00, "sd">, Sched<[WriteSTD, ReadStoreData, ReadMemBase]>;
 
 let IsSignExtendingOpW = 1 in {
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
@@ -1041,6 +1052,18 @@ let Predicates = [HasStdExtZihintntl] in {
 } // Predicates = [HasStdExtZihintntl]
 
 let EmitPriority = 0 in {
+// don't break existing assembly
+def : InstAlias<"lb $rd, ${imm32}(${rs1})",
+                (LB  GPR:$rd, GPR:$rs1, simm32:$imm32)>;
+def : InstAlias<"lh $rd, ${imm32}(${rs1})",
+                (LH  GPR:$rd, GPR:$rs1, simm32:$imm32)>;
+def : InstAlias<"lw $rd, ${imm32}(${rs1})",
+                (LW  GPR:$rd, GPR:$rs1, simm32:$imm32)>;
+def : InstAlias<"lbu $rd, ${imm32}(${rs1})",
+                (LBU  GPR:$rd, GPR:$rs1, simm32:$imm32)>;
+def : InstAlias<"lhu $rd, ${imm32}(${rs1})",
+                (LHU  GPR:$rd, GPR:$rs1, simm32:$imm32)>;
+
 def : InstAlias<"lb $rd, (${rs1})",
                 (LB  GPR:$rd, GPR:$rs1, 0)>;
 def : InstAlias<"lh $rd, (${rs1})",
@@ -1051,6 +1074,13 @@ def : InstAlias<"lbu $rd, (${rs1})",
                 (LBU  GPR:$rd, GPR:$rs1, 0)>;
 def : InstAlias<"lhu $rd, (${rs1})",
                 (LHU  GPR:$rd, GPR:$rs1, 0)>;
+
+def : InstAlias<"sb $rs2, ${imm32}(${rs1})",
+                (SB  GPR:$rs2, GPR:$rs1, simm32:$imm32)>;
+def : InstAlias<"sh $rs2, ${imm32}(${rs1})",
+                (SH  GPR:$rs2, GPR:$rs1, simm32:$imm32)>;
+def : InstAlias<"sw $rs2, ${imm32}(${rs1})",
+                (SW  GPR:$rs2, GPR:$rs1, simm32:$imm32)>;
 
 def : InstAlias<"sb $rs2, (${rs1})",
                 (SB  GPR:$rs2, GPR:$rs1, 0)>;
@@ -1903,6 +1933,19 @@ class LdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT>
     : Pat<(vt (LoadOp (AddrRegImm (XLenVT GPR:$rs1), simm32:$imm32))),
           (Inst GPR:$rs1, simm32:$imm32)>;
 
+class ShmemLoad<PatFrag Node> : PatFrag<(ops node:$ptr), (Node node:$ptr), [{
+  LoadSDNode *LD = cast<LoadSDNode>(N);
+  return LD && (LD->getPointerInfo().getAddrSpace() == 1);
+}]>;
+
+def : LdPat<ShmemLoad<sextloadi8>, LB_shared>;
+def : LdPat<ShmemLoad<extloadi8>, LBU_shared>; // Prefer unsigned due to no c.lb in Zcb.
+def : LdPat<ShmemLoad<sextloadi16>, LH_shared>;
+def : LdPat<ShmemLoad<extloadi16>, LH_shared>;
+def : LdPat<ShmemLoad<load>, LW_shared, i32>;
+def : LdPat<ShmemLoad<zextloadi8>, LBU_shared>;
+def : LdPat<ShmemLoad<zextloadi16>, LHU_shared>;
+
 def : LdPat<sextloadi8, LB>;
 def : LdPat<extloadi8, LBU>; // Prefer unsigned due to no c.lb in Zcb.
 def : LdPat<sextloadi16, LH>;
@@ -1918,6 +1961,15 @@ class StPat<PatFrag StoreOp, RVInst Inst, RegisterClass StTy,
     : Pat<(StoreOp (vt StTy:$rs2), (AddrRegImm (XLenVT GPR:$rs1),
                    simm32:$imm32)),
           (Inst StTy:$rs2, GPR:$rs1, simm32:$imm32)>;
+
+class ShmemStore<PatFrag Node> : PatFrag<(ops node:$val, node:$ptr), (Node node:$val, node:$ptr), [{
+  StoreSDNode *ST = cast<StoreSDNode>(N);
+  return ST && (ST->getPointerInfo().getAddrSpace() == 1);
+}]>;
+
+def : StPat<ShmemStore<truncstorei8>, SB_shared, GPR, XLenVT>;
+def : StPat<ShmemStore<truncstorei16>, SH_shared, GPR, XLenVT>;
+def : StPat<ShmemStore<store>, SW_shared, GPR, i32>;
 
 def : StPat<truncstorei8, SB, GPR, XLenVT>;
 def : StPat<truncstorei16, SH, GPR, XLenVT>;
