@@ -29,10 +29,12 @@ def VX_JOIN : RVInstR<0, 3, RISCV_CUSTOM0, (outs), (ins GPR:$rs1), "vx_join", "$
     let rs2 = 0;
 }
 
-def VX_BAR : RVInstR<0, 4, RISCV_CUSTOM0, (outs), (ins GPR:$rs1, GPR:$rs2), "vx_bar", "$rs1, $rs2">, Sched<[]> {
-    let rd = 0;
-    let isBarrier = 1;
-}
+// vx_bar is aliased in neutrino definitions
+
+// def VX_BAR : RVInstR<0, 4, RISCV_CUSTOM0, (outs), (ins GPR:$rs1, GPR:$rs2), "vx_bar", "$rs1, $rs2">, Sched<[]> {
+//     let rd = 0;
+//     let isBarrier = 1;
+// }
 
 def VX_PRED : RVInstR<0, 5, RISCV_CUSTOM0, (outs), (ins GPR:$rs1, GPR:$rs2), "vx_pred", "$rs1, $rs2">, Sched<[]> {
     let rd  = 0;
@@ -109,5 +111,5 @@ def : Pat<(int_riscv_vx_join_i64 GPR:$rs1), (VX_JOIN GPR:$rs1)>;
 def : Pat<(int_riscv_vx_mov_i32 GPR:$src), (VX_MOV GPR:$src)>;
 def : Pat<(int_riscv_vx_mov_i64 GPR:$src), (VX_MOV GPR:$src)>;
 
-def : Pat<(int_riscv_vx_bar_i32 GPR:$rs1, GPR:$rs2), (VX_BAR GPR:$rs1, GPR:$rs2)>;
-def : Pat<(int_riscv_vx_bar_i64 GPR:$rs1, GPR:$rs2), (VX_BAR GPR:$rs1, GPR:$rs2)>;
+// def : Pat<(int_riscv_vx_bar_i32 GPR:$rs1, GPR:$rs2), (VX_BAR GPR:$rs1, GPR:$rs2)>;
+// def : Pat<(int_riscv_vx_bar_i64 GPR:$rs1, GPR:$rs2), (VX_BAR GPR:$rs1, GPR:$rs2)>;

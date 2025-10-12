@@ -1,7 +1,7 @@
 // Neutrino instruction definitions
 
-class NeutrinoInst<bits<2> ret_mode, bits<2> part_mode, bits<1> sync, bits<2> ext2, dag outs,
-                   dag ins, string opcodestr, string argstr>
+class NeutrinoInst<bits<2> ret_mode, bits<2> part_mode, bits<1> sync, bits<2> ext2, bits<7> opcode,
+                   dag outs, dag ins, string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR5> {
 
   // bits<4> pred;
@@ -24,13 +24,21 @@ class NeutrinoInst<bits<2> ret_mode, bits<2> part_mode, bits<1> sync, bits<2> ex
   let Inst{17} = sync;
   let Inst{16-9} = rd;
   let Inst{8-7} = ext2;
-  let Inst{6-0} = 0b1011011; // custom2
+  let Inst{6-0} = opcode; // custom2
 }
 
 class NuInvokeInst<bits<2> ret_mode, bits<2> part_mode, bits<1> sync, bits<2> ext2, string opcodestr>
-    : NeutrinoInst<ret_mode, part_mode, sync, ext2,
+    : NeutrinoInst<ret_mode, part_mode, sync, ext2, 0b1011011,
                    (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems),
                    opcodestr, "$rd, $rs1, $rs2, $rs3, $rs4, $elems">, Sched<[]>;
+
+class NuInvokeImmInst<bits<2> ret_mode, bits<2> part_mode, bits<1> sync, bits<2> ext2, string opcodestr>
+    : NeutrinoInst<ret_mode, part_mode, sync, ext2, 0b1111011,
+                   (outs GPR:$rd), (ins uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems),
+                   opcodestr, "$rd, $task, $rs2, $rs3, $rs4, $elems">, Sched<[]> {
+  bits<8> task;
+  let rs1 = task;
+}
 
 let hasSideEffects = 1, mayStore = 0 , mayLoad = 0 in {
 
@@ -52,8 +60,20 @@ def NU_INVOKE_RM_PW_SYNC  : NuInvokeInst<2, 1, 1, 0, "nu.invoke.rm.pw.sync">;
 def NU_INVOKE_RI_PC_SYNC  : NuInvokeInst<0, 2, 1, 0, "nu.invoke.ri.pc.sync">;
 def NU_INVOKE_RH_PC_SYNC  : NuInvokeInst<1, 2, 1, 0, "nu.invoke.rh.pc.sync">;
 def NU_INVOKE_RM_PC_SYNC  : NuInvokeInst<2, 2, 1, 0, "nu.invoke.rm.pc.sync">;
+def NU_INVOKE_IMM_RI_PT_SYNC  : NuInvokeImmInst<0, 0, 1, 0, "nu.invokei.ri.pt.sync">;
+def NU_INVOKE_IMM_RH_PT_SYNC  : NuInvokeImmInst<1, 0, 1, 0, "nu.invokei.rh.pt.sync">;
+def NU_INVOKE_IMM_RM_PT_SYNC  : NuInvokeImmInst<2, 0, 1, 0, "nu.invokei.rm.pt.sync">;
+def NU_INVOKE_IMM_RI_PW_SYNC  : NuInvokeImmInst<0, 1, 1, 0, "nu.invokei.ri.pw.sync">;
+def NU_INVOKE_IMM_RH_PW_SYNC  : NuInvokeImmInst<1, 1, 1, 0, "nu.invokei.rh.pw.sync">;
+def NU_INVOKE_IMM_RM_PW_SYNC  : NuInvokeImmInst<2, 1, 1, 0, "nu.invokei.rm.pw.sync">;
+def NU_INVOKE_IMM_RI_PC_SYNC  : NuInvokeImmInst<0, 2, 1, 0, "nu.invokei.ri.pc.sync">;
+def NU_INVOKE_IMM_RH_PC_SYNC  : NuInvokeImmInst<1, 2, 1, 0, "nu.invokei.rh.pc.sync">;
+def NU_INVOKE_IMM_RM_PC_SYNC  : NuInvokeImmInst<2, 2, 1, 0, "nu.invokei.rm.pc.sync">;
 
 }
+
+// vx_bar can be implemented with nu_invoke
+def : InstAlias<"vx_bar $rs1, $imm",  (NU_INVOKE_RI_PW_SYNC X0, GPR:$rs1, X0, X0, X0, uimm6_plus1:$imm)>;
 
 def : Pat<(int_riscv_nu_invoke_ri_pt_async GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_RI_PT_ASYNC GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
 def : Pat<(int_riscv_nu_invoke_rh_pt_async GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_RH_PT_ASYNC GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
@@ -74,4 +94,14 @@ def : Pat<(int_riscv_nu_invoke_rm_pw_sync  GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs
 def : Pat<(int_riscv_nu_invoke_ri_pc_sync  GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_RI_PC_SYNC  GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
 def : Pat<(int_riscv_nu_invoke_rh_pc_sync  GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_RH_PC_SYNC  GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
 def : Pat<(int_riscv_nu_invoke_rm_pc_sync  GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_RM_PC_SYNC  GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
+
+def : Pat<(int_riscv_nu_invokei_ri_pt_sync  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_IMM_RI_PT_SYNC  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
+def : Pat<(int_riscv_nu_invokei_rh_pt_sync  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_IMM_RH_PT_SYNC  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
+def : Pat<(int_riscv_nu_invokei_rm_pt_sync  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_IMM_RM_PT_SYNC  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
+def : Pat<(int_riscv_nu_invokei_ri_pw_sync  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_IMM_RI_PW_SYNC  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
+def : Pat<(int_riscv_nu_invokei_rh_pw_sync  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_IMM_RH_PW_SYNC  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
+def : Pat<(int_riscv_nu_invokei_rm_pw_sync  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_IMM_RM_PW_SYNC  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
+def : Pat<(int_riscv_nu_invokei_ri_pc_sync  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_IMM_RI_PC_SYNC  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
+def : Pat<(int_riscv_nu_invokei_rh_pc_sync  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_IMM_RH_PC_SYNC  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
+def : Pat<(int_riscv_nu_invokei_rm_pc_sync  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_IMM_RM_PC_SYNC  uimm8:$task, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
 

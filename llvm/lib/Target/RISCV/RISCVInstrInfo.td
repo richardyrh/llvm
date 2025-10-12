@@ -764,6 +764,11 @@ def EBREAK : RVInstI2<0b000, 0, OPC_SYSTEM, (outs), (ins), "ebreak", "">,
   let imm32 = {0b00000000000000000000,0b000000000001};
 }
 
+def TOHOST : RVInstI2<0b000, 0, OPC_SYSTEM, (outs), (ins GPRMem:$rs1), "tohost", "$rs1">, Sched<[WriteJmp]> {
+  let rd = 0;
+  let imm32 = {0b00000000000000000000,0b000000000010};
+}
+
 // This is a de facto standard (as set by GNU binutils) 32-bit unimplemented
 // instruction (i.e., it should always trap, if your implementation has invalid
 // instruction traps).
