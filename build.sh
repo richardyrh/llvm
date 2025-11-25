@@ -3,8 +3,8 @@
 LLVM_PREBUILT="$1"
 MUON_LLVM_INSTALL="$2"
 SYSROOT=$PWD
-CFLAGS="-march=rv32im_zfinx --sysroot=$SYSROOT"
-CXXFLAGS="-march=rv32im_zfinx --sysroot=$SYSROOT"
+CFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$SYSROOT"
+CXXFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$SYSROOT"
 TARGET="riscv32-unknown-elf"
 
 cmake -G "Ninja" ../llvm \
