@@ -3,8 +3,8 @@
 LLVM_PREBUILT="$1"
 MUON_LLVM_INSTALL="$2"
 SYSROOT=$PWD
-CFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$SYSROOT"
-CXXFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$SYSROOT"
+CFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$SYSROOT -fPIC"
+CXXFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$SYSROOT -fPIC"
 TARGET="riscv32-unknown-elf"
 
 cmake -G "Ninja" ../llvm \
@@ -68,4 +68,3 @@ cmake -G "Ninja" ../llvm \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS=OFF \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXXABI_ENABLE_ASSERTIONS=OFF \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXXABI_ENABLE_SHARED=OFF \
-
