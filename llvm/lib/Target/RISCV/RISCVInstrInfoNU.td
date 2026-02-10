@@ -82,13 +82,13 @@ def NU_INVOKE_IMM_RM_PC_SYNC  : NuInvokeImmInst<2, 2, 1, 0, "nu.invokei.rm.pc.sy
 
 }
 
-def FPEXP_S : NuCustomFPUnaryFrm<0b0101100, 0b00001, FPR32, FPR32, "fpexp.s">,
+def FEXP_S : NuCustomFPUnaryFrm<0b0101100, 0b00001, FPR32, FPR32, "fexp.s">,
               Sched<[]>;
-def FPNEXP_S : NuCustomFPUnaryFrm<0b0101100, 0b00010, FPR32, FPR32, "fpnexp.s">,
+def FNEXP_S : NuCustomFPUnaryFrm<0b0101100, 0b00010, FPR32, FPR32, "fnexp.s">,
                Sched<[]>;
-def FPEXP_H : NuCustomFPUnaryFrm<0b0101110, 0b00001, FPR16, FPR16, "fpexp.h">,
+def FEXP_H : NuCustomFPUnaryFrm<0b0101110, 0b00001, FPR16, FPR16, "fexp.h">,
               Sched<[]>;
-def FPNEXP_H : NuCustomFPUnaryFrm<0b0101110, 0b00010, FPR16, FPR16, "fpnexp.h">,
+def FNEXP_H : NuCustomFPUnaryFrm<0b0101110, 0b00010, FPR16, FPR16, "fnexp.h">,
                Sched<[]>;
 
 // vx_bar can be implemented with nu_invoke
