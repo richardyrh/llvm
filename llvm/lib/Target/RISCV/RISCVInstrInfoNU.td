@@ -44,7 +44,7 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1,
     UseNamedOperandTable = 1, hasPostISelHook = 1 in
 class NuCustomFPUnaryFrm<bits<7> funct7, bits<5> rs2val, DAGOperand rdty,
                          DAGOperand rs1ty, string opcodestr>
-    : RVInstR3Frm<funct7, 0b01, OPC_CUSTOM_2, (outs rdty:$rd),
+    : RVInstR3Frm<funct7, 0b01, OPC_CUSTOM_3, (outs rdty:$rd),
                  (ins rs1ty:$rs1, frmarg:$frm), opcodestr,
                  "$rd, $rs1$frm"> {
   let rs2 = {0b000, rs2val};
@@ -82,14 +82,33 @@ def NU_INVOKE_IMM_RM_PC_SYNC  : NuInvokeImmInst<2, 2, 1, 0, "nu.invokei.rm.pc.sy
 
 }
 
+let Predicates = [HasStdExtF] in {
 def FEXP_S : NuCustomFPUnaryFrm<0b0101100, 0b00001, FPR32, FPR32, "fexp.s">,
               Sched<[]>;
 def FNEXP_S : NuCustomFPUnaryFrm<0b0101100, 0b00010, FPR32, FPR32, "fnexp.s">,
                Sched<[]>;
+}
+
+let Predicates = [HasStdExtZfinx], DecoderNamespace = "RVZfinx" in {
+def FEXP_S_INX : NuCustomFPUnaryFrm<0b0101100, 0b00001, FPR32INX, FPR32INX, "fexp.s">,
+                  Sched<[]>;
+def FNEXP_S_INX : NuCustomFPUnaryFrm<0b0101100, 0b00010, FPR32INX, FPR32INX, "fnexp.s">,
+                   Sched<[]>;
+}
+
+let Predicates = [HasStdExtZfh] in {
 def FEXP_H : NuCustomFPUnaryFrm<0b0101110, 0b00001, FPR16, FPR16, "fexp.h">,
               Sched<[]>;
 def FNEXP_H : NuCustomFPUnaryFrm<0b0101110, 0b00010, FPR16, FPR16, "fnexp.h">,
                Sched<[]>;
+}
+
+let Predicates = [HasStdExtZhinx], DecoderNamespace = "RVZfinx" in {
+def FEXP_H_INX : NuCustomFPUnaryFrm<0b0101110, 0b00001, FPR16INX, FPR16INX, "fexp.h">,
+                  Sched<[]>;
+def FNEXP_H_INX : NuCustomFPUnaryFrm<0b0101110, 0b00010, FPR16INX, FPR16INX, "fnexp.h">,
+                   Sched<[]>;
+}
 
 // vx_bar can be implemented with nu_invoke
 def : InstAlias<"vx_bar $rs1, $imm",  (NU_INVOKE_RI_PW_SYNC X0, GPR:$rs1, X0, X0, X0, uimm6_plus1:$imm)>;
