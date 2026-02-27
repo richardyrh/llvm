@@ -674,11 +674,17 @@ def BGEU : BranchCC_rri<0b111, "bgeu">;
 // Radiance: multiclass for all address space qualifier for memory instructions
 multiclass Load_ri_class <bits<3> funct3, string opcodestr> {
   def ""      : Load_ri<funct3, 0b00, !strconcat(opcodestr, ".global")>;
+  
+  // guarantee that .shared variant has higher priority in selectiondag matcher
+  let AddedComplexity = 10 in
   def _shared : Load_ri<funct3, 0b01, !strconcat(opcodestr, ".shared")>;
 }
 
 multiclass Store_rri_class<bits<3> funct3, string opcodestr> {
   def ""      : Store_rri<funct3, 0b00, !strconcat(opcodestr, ".global")>;
+
+  // guarantee that .shared variant has higher priority in selectiondag matcher
+  let AddedComplexity = 10 in
   def _shared : Store_rri<funct3, 0b01, !strconcat(opcodestr, ".shared")>;
 }
 
@@ -1964,6 +1970,7 @@ class StPat<PatFrag StoreOp, RVInst Inst, RegisterClass StTy,
 
 class ShmemStore<PatFrag Node> : PatFrag<(ops node:$val, node:$ptr), (Node node:$val, node:$ptr), [{
   StoreSDNode *ST = cast<StoreSDNode>(N);
+  /// errs() << "addr-space: " << ST->getPointerInfo().getAddrSpace() << '\n';
   return ST && (ST->getPointerInfo().getAddrSpace() == 1);
 }]>;
 

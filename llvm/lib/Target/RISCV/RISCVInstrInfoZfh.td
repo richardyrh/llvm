@@ -422,10 +422,15 @@ def : StPat<store, FSH, FPR16, f16>;
 
 let Predicates = [HasStdExtZhinxmin] in {
 /// Loads
+def : Pat<(f16 (ShmemLoad<load> (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
+          (COPY_TO_REGCLASS (LH_shared GPR:$rs1, simm12:$imm12), GPRF16)>;
 def : Pat<(f16 (load (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
           (COPY_TO_REGCLASS (LH GPR:$rs1, simm12:$imm12), GPRF16)>;
 
 /// Stores
+def : Pat<(ShmemStore<store> (f16 FPR16INX:$rs2),
+                 (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
+          (SH_shared (COPY_TO_REGCLASS FPR16INX:$rs2, GPR), GPR:$rs1, simm12:$imm12)>;
 def : Pat<(store (f16 FPR16INX:$rs2),
                  (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
           (SH (COPY_TO_REGCLASS FPR16INX:$rs2, GPR), GPR:$rs1, simm12:$imm12)>;

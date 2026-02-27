@@ -674,10 +674,15 @@ defm Select_FPR32INX : SelectCC_GPR_rrirr<FPR32INX, f32>;
 def PseudoFROUND_S_INX : PseudoFROUND<FPR32INX, f32>;
 
 /// Loads
+def : Pat<(f32 (ShmemLoad<load> (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
+          (COPY_TO_REGCLASS (LW_shared GPR:$rs1, simm12:$imm12), GPRF32)>;
 def : Pat<(f32 (load (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
           (COPY_TO_REGCLASS (LW GPR:$rs1, simm12:$imm12), GPRF32)>;
 
 /// Stores
+def : Pat<(ShmemStore<store> (f32 FPR32INX:$rs2),
+                 (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
+          (SW_shared (COPY_TO_REGCLASS FPR32INX:$rs2, GPR), GPR:$rs1, simm12:$imm12)>;
 def : Pat<(store (f32 FPR32INX:$rs2), (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
           (SW (COPY_TO_REGCLASS FPR32INX:$rs2, GPR), GPR:$rs1, simm12:$imm12)>;
 } // Predicates = [HasStdExtZfinx]
