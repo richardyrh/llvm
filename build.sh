@@ -2,14 +2,20 @@
 # Assumes current dir is build dir
 LLVM_PREBUILT="$1"
 MUON_LLVM_INSTALL="$2"
-SYSROOT=$PWD
-CFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$SYSROOT -fPIC"
-CXXFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$SYSROOT -fPIC"
+RUNTIME_SYSROOT="/opt/riscv/sysroot/usr"
+SYSROOT_OVERLAY="$PWD/sysroot-overlay"
+mkdir -p "$SYSROOT_OVERLAY/include/gnu"
+cat > "$SYSROOT_OVERLAY/include/gnu/stubs-ilp32.h" <<'EOF'
+/* shim for rv32 target; provides missing glibc stubs include */
+EOF
+
+CFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$RUNTIME_SYSROOT -isystem $SYSROOT_OVERLAY/include -D_POSIX_C_SOURCE=200809L -fPIC"
+CXXFLAGS="-march=rv32im_zfinx_zhinx --sysroot=$RUNTIME_SYSROOT -isystem $SYSROOT_OVERLAY/include -D_POSIX_C_SOURCE=200809L -fPIC"
 TARGET="riscv32-unknown-elf"
 
 cmake -G "Ninja" ../llvm \
 -DLLVM_ENABLE_PROJECTS="clang;lld" \
--DLLVM_ENABLE_RUNTIMES="libc;compiler-rt" \
+-DLLVM_ENABLE_RUNTIMES="libc;compiler-rt;libcxxabi;libcxx" \
 -DLLVM_ABI_BREAKING_CHECKS=FORCE_OFF \
 -DLLVM_INCLUDE_EXAMPLES=OFF \
 -DLLVM_INCLUDE_TESTS=OFF \
@@ -28,10 +34,8 @@ cmake -G "Ninja" ../llvm \
 -DCMAKE_AR=$LLVM_PREBUILT/llvm-ar \
 -DCMAKE_NM=$LLVM_PREBUILT/llvm-nm \
 -DCMAKE_RANLIB=$LLVM_PREBUILT/llvm-ranlib \
--DLLVM_LIBC_FULL_BUILD=ON \
 -DLLVM_RUNTIME_TARGETS=$TARGET \
 -DLLVM_BUILTIN_TARGETS=$TARGET \
--DRUNTIMES_riscv32-unknown-elf_LLVM_LIBC_FULL_BUILD=ON \
 -DRUNTIMES_riscv32-unknown-elf_CMAKE_C_FLAGS="$CFLAGS" \
 -DRUNTIMES_riscv32-unknown-elf_CMAKE_CXX_FLAGS="$CXXFLAGS" \
 -DRUNTIMES_riscv32-unknown-elf_COMPILER_RT_BAREMETAL_BUILD=ON \
@@ -44,9 +48,9 @@ cmake -G "Ninja" ../llvm \
 -DRUNTIMES_riscv32-unknown-elf_COMPILER_RT_BUILD_ORC=OFF \
 -DRUNTIMES_riscv32-unknown-elf_COMPILER_RT_BUILD_GWP_ASAN=OFF \
 -DRUNTIMES_riscv32-unknown-elf_COMPILER_RT_USE_BUILTINS_LIBRARY=ON \
--DRUNTIMES_riscv32-unknown-elf_CMAKE_SYSROOT="$SYSROOT" \
+-DRUNTIMES_riscv32-unknown-elf_CMAKE_SYSROOT="$RUNTIME_SYSROOT" \
 -DBUILTINS_riscv32-unknown-elf_COMPILER_RT_BAREMETAL_BUILD=ON \
--DBUILTINS_riscv32-unknown-elf_CMAKE_SYSROOT="$SYSROOT" \
+-DBUILTINS_riscv32-unknown-elf_CMAKE_SYSROOT="$RUNTIME_SYSROOT" \
 -DBUILTINS_riscv32-unknown-elf_CMAKE_C_FLAGS="$CFLAGS" \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXX_ENABLE_EXCEPTIONS=OFF \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXX_ENABLE_SHARED=OFF \
@@ -58,6 +62,7 @@ cmake -G "Ninja" ../llvm \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXX_ENABLE_IOSTREAM=OFF \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXX_ENABLE_FILESYSTEM=OFF \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXX_ENABLE_RANDOM_DEVICE=OFF \
+-DRUNTIMES_riscv32-unknown-elf_LIBCXX_INSTALL_INCLUDE_TARGET_DIR="include/c++/v1" \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXXABI_ENABLE_EXCEPTIONS=OFF \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXXABI_USE_LLVM_UNWINDER=OFF \
 -DRUNTIMES_riscv32-unknown-elf_LIBCXXABI_ENABLE_STATIC_UNWINDER=OFF \
