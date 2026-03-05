@@ -111,7 +111,7 @@ def FNEXP_H_INX : NuCustomFPUnaryFrm<0b0101110, 0b00010, FPR16INX, FPR16INX, "fn
 }
 
 // vx_bar can be implemented with nu_invoke
-def : InstAlias<"vx_bar $rs1, $imm",  (NU_INVOKE_RI_PW_SYNC X0, GPR:$rs1, X0, X0, X0, uimm6_plus1:$imm)>;
+def : InstAlias<"vx_bar $rs1, $rs2",  (NU_INVOKE_RI_PW_SYNC X0, GPR:$rs1, GPR:$rs2, X0, X0, 0)>;
 
 def : Pat<(int_riscv_nu_invoke_ri_pt_async GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_RI_PT_ASYNC GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
 def : Pat<(int_riscv_nu_invoke_rh_pt_async GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems), (NU_INVOKE_RH_PT_ASYNC GPR:$rs1, GPR:$rs2, GPR:$rs3, GPR:$rs4, uimm6_plus1:$elems)>;
