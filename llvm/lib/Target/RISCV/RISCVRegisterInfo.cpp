@@ -36,6 +36,10 @@ static cl::opt<bool>
                          cl::desc("Disable two address hints for register "
                                   "allocation"));
 
+static int64_t scaleFixedStackOffset(const RISCVSubtarget &ST, int64_t Offset) {
+  return Offset * static_cast<int64_t>(ST.getStackWordStride());
+}
+
 static_assert(RISCV::X1 == RISCV::X0 + 1, "Register list not consecutive");
 static_assert(RISCV::X31 == RISCV::X0 + 31, "Register list not consecutive");
 static_assert(RISCV::X127 == RISCV::X0 + 127, "Register list not consecutive");
@@ -125,6 +129,13 @@ BitVector RISCVRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   if (Subtarget.isRVE())
     for (MCPhysReg Reg = RISCV::X16; Reg <= RISCV::X31; Reg++)
       markSuperRegs(Reserved, Reg);
+
+  unsigned MaxAllocatableGPRs = Subtarget.getMaxAllocatableGPRs();
+  if (MaxAllocatableGPRs < 128) {
+    for (MCPhysReg Reg = RISCV::X0 + MaxAllocatableGPRs; Reg <= RISCV::X127;
+         Reg++)
+      markSuperRegs(Reserved, Reg);
+  }
 
   // V registers for code generation. We handle them manually.
   markSuperRegs(Reserved, RISCV::VL);
@@ -448,7 +459,8 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       getFrameLowering(MF)->getFrameIndexReference(MF, FrameIndex, FrameReg);
   bool IsRVVSpill = RISCV::isRVVSpill(MI);
   if (!IsRVVSpill)
-    Offset += StackOffset::getFixed(MI.getOperand(FIOperandNum + 1).getImm());
+    Offset += StackOffset::getFixed(scaleFixedStackOffset(
+        ST, MI.getOperand(FIOperandNum + 1).getImm()));
 
   if (Offset.getScalable() &&
       ST.getRealMinVLen() == ST.getRealMaxVLen()) {

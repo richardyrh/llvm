@@ -27,6 +27,20 @@
 
 using namespace llvm;
 
+static int64_t scaleFixedStackOffset(const RISCVSubtarget &STI, int64_t Offset) {
+  return Offset * static_cast<int64_t>(STI.getStackWordStride());
+}
+
+static uint64_t scaleFixedStackSize(const RISCVSubtarget &STI, uint64_t Size) {
+  return Size * static_cast<uint64_t>(STI.getStackWordStride());
+}
+
+static StackOffset scaleFixedStackOffset(const RISCVSubtarget &STI,
+                                         StackOffset Offset) {
+  return StackOffset::get(scaleFixedStackOffset(STI, Offset.getFixed()),
+                          Offset.getScalable());
+}
+
 static Align getABIStackAlignment(RISCVABI::ABI ABI) {
   if (ABI == RISCVABI::ABI_ILP32E)
     return Align(4);
@@ -523,7 +537,10 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   // FIXME (note copied from Lanai): This appears to be overallocating.  Needs
   // investigation. Get the number of bytes to allocate from the FrameInfo.
   uint64_t StackSize = getStackSizeWithRVVPadding(MF);
-  uint64_t RealStackSize = StackSize + RVFI->getReservedSpillsSize();
+  uint64_t RealStackSizeLogical = StackSize + RVFI->getReservedSpillsSize();
+  uint64_t StackSizeLogical = StackSize;
+  StackSize = scaleFixedStackSize(STI, StackSizeLogical);
+  uint64_t RealStackSize = scaleFixedStackSize(STI, RealStackSizeLogical);
   uint64_t RVVStackSize = RVFI->getRVVStackSize();
 
   // Early exit if there is no need to allocate on the stack
@@ -536,11 +553,13 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     MF.getFunction().getContext().diagnose(DiagnosticInfoUnsupported{
         MF.getFunction(), "Stack pointer required, but has been reserved."});
 
-  uint64_t FirstSPAdjustAmount = getFirstSPAdjustAmount(MF);
+  uint64_t FirstSPAdjustAmount =
+      STI.getStackWordStride() == 1 ? getFirstSPAdjustAmount(MF) : 0;
   // Split the SP adjustment to reduce the offsets of callee saved spill.
   if (FirstSPAdjustAmount) {
-    StackSize = FirstSPAdjustAmount;
-    RealStackSize = FirstSPAdjustAmount;
+    uint64_t ScaledAdjust = scaleFixedStackSize(STI, FirstSPAdjustAmount);
+    StackSize = ScaledAdjust;
+    RealStackSize = ScaledAdjust;
   }
 
   if (RVFI->isPushable(MF) && FirstFrameSetup != MBB.end() &&
@@ -595,6 +614,7 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
       Offset = MFI.getObjectOffset(FrameIdx) - RVFI->getReservedSpillsSize();
     }
     Register Reg = Entry.getReg();
+    Offset = scaleFixedStackOffset(STI, Offset);
     unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::createOffset(
         nullptr, RI->getDwarfRegNum(Reg, true), Offset));
     BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
@@ -611,12 +631,15 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     assert(MF.getRegInfo().isReserved(FPReg) && "FP not reserved");
 
     RI->adjustReg(MBB, MBBI, DL, FPReg, SPReg,
-                  StackOffset::getFixed(RealStackSize - RVFI->getVarArgsSaveSize()),
+                  StackOffset::getFixed(RealStackSize -
+                                        scaleFixedStackSize(
+                                            STI, RVFI->getVarArgsSaveSize())),
                   MachineInstr::FrameSetup, getStackAlign());
 
     // Emit ".cfi_def_cfa $fp, RVFI->getVarArgsSaveSize()"
     unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::cfiDefCfa(
-        nullptr, RI->getDwarfRegNum(FPReg, true), RVFI->getVarArgsSaveSize()));
+        nullptr, RI->getDwarfRegNum(FPReg, true),
+        scaleFixedStackSize(STI, RVFI->getVarArgsSaveSize())));
     BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
         .addCFIIndex(CFIIndex)
         .setMIFlag(MachineInstr::FrameSetup);
@@ -625,11 +648,12 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   // Emit the second SP adjustment after saving callee saved registers.
   if (FirstSPAdjustAmount) {
     uint64_t SecondSPAdjustAmount =
-        getStackSizeWithRVVPadding(MF) - FirstSPAdjustAmount;
+        StackSizeLogical - FirstSPAdjustAmount;
     assert(SecondSPAdjustAmount > 0 &&
            "SecondSPAdjustAmount should be greater than zero");
+    uint64_t ScaledSecondAdjust = scaleFixedStackSize(STI, SecondSPAdjustAmount);
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
-                  StackOffset::getFixed(-SecondSPAdjustAmount),
+                  StackOffset::getFixed(-ScaledSecondAdjust),
                   MachineInstr::FrameSetup, getStackAlign());
 
     // If we are using a frame-pointer, and thus emitted ".cfi_def_cfa fp, 0",
@@ -637,7 +661,7 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     if (!hasFP(MF)) {
       // Emit ".cfi_def_cfa_offset StackSize"
       unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::cfiDefCfaOffset(
-          nullptr, getStackSizeWithRVVPadding(MF)));
+          nullptr, scaleFixedStackSize(STI, getStackSizeWithRVVPadding(MF))));
       BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
           .addCFIIndex(CFIIndex)
           .setMIFlag(MachineInstr::FrameSetup);
@@ -650,7 +674,8 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     if (!hasFP(MF)) {
       // Emit .cfi_def_cfa_expression "sp + StackSize + RVVStackSize * vlenb".
       unsigned CFIIndex = MF.addFrameInst(createDefCFAExpression(
-          *RI, SPReg, getStackSizeWithRVVPadding(MF), RVVStackSize / 8));
+          *RI, SPReg, scaleFixedStackSize(STI, getStackSizeWithRVVPadding(MF)),
+          RVVStackSize / 8));
       BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
           .addCFIIndex(CFIIndex)
           .setMIFlag(MachineInstr::FrameSetup);
@@ -736,9 +761,12 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
   if (!CSI.empty())
     LastFrameDestroy = std::prev(MBBI, CSI.size());
 
-  uint64_t StackSize = getStackSizeWithRVVPadding(MF);
-  uint64_t RealStackSize = StackSize + RVFI->getReservedSpillsSize();
-  uint64_t FPOffset = RealStackSize - RVFI->getVarArgsSaveSize();
+  uint64_t StackSizeLogical = getStackSizeWithRVVPadding(MF);
+  uint64_t RealStackSizeLogical = StackSizeLogical + RVFI->getReservedSpillsSize();
+  uint64_t StackSize = scaleFixedStackSize(STI, StackSizeLogical);
+  uint64_t RealStackSize = scaleFixedStackSize(STI, RealStackSizeLogical);
+  uint64_t FPOffset = RealStackSize -
+                      scaleFixedStackSize(STI, RVFI->getVarArgsSaveSize());
   uint64_t RVVStackSize = RVFI->getRVVStackSize();
 
   // Restore the stack pointer using the value of the frame pointer. Only
@@ -763,20 +791,22 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
                         MachineInstr::FrameDestroy);
   }
 
-  uint64_t FirstSPAdjustAmount = getFirstSPAdjustAmount(MF);
+  uint64_t FirstSPAdjustAmount =
+      STI.getStackWordStride() == 1 ? getFirstSPAdjustAmount(MF) : 0;
   if (FirstSPAdjustAmount) {
     uint64_t SecondSPAdjustAmount =
-        getStackSizeWithRVVPadding(MF) - FirstSPAdjustAmount;
+        StackSizeLogical - FirstSPAdjustAmount;
     assert(SecondSPAdjustAmount > 0 &&
            "SecondSPAdjustAmount should be greater than zero");
+    uint64_t ScaledSecondAdjust = scaleFixedStackSize(STI, SecondSPAdjustAmount);
 
     RI->adjustReg(MBB, LastFrameDestroy, DL, SPReg, SPReg,
-                  StackOffset::getFixed(SecondSPAdjustAmount),
+                  StackOffset::getFixed(ScaledSecondAdjust),
                   MachineInstr::FrameDestroy, getStackAlign());
   }
 
   if (FirstSPAdjustAmount)
-    StackSize = FirstSPAdjustAmount;
+    StackSize = scaleFixedStackSize(STI, FirstSPAdjustAmount);
 
   if (RVFI->isPushable(MF) && MBBI != MBB.end() &&
       MBBI->getOpcode() == RISCV::CM_POP) {
@@ -824,7 +854,8 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
     Offset = StackOffset::getScalable(MFI.getObjectOffset(FI));
   }
 
-  uint64_t FirstSPAdjustAmount = getFirstSPAdjustAmount(MF);
+  uint64_t FirstSPAdjustAmount =
+      STI.getStackWordStride() == 1 ? getFirstSPAdjustAmount(MF) : 0;
 
   if (CSI.size()) {
     MinCSFI = CSI[0].getFrameIdx();
@@ -838,7 +869,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
       Offset += StackOffset::getFixed(FirstSPAdjustAmount);
     else
       Offset += StackOffset::getFixed(getStackSizeWithRVVPadding(MF));
-    return Offset;
+    return scaleFixedStackOffset(STI, Offset);
   }
 
   if (RI->hasStackRealignment(MF) && !MFI.isFixedObjectIndex(FI)) {
@@ -914,7 +945,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
              "Inconsistent stack layout");
       Offset -= StackOffset::getFixed(MFI.getStackSize());
     }
-    return Offset;
+    return scaleFixedStackOffset(STI, Offset);
   }
 
   // This case handles indexing off both SP and BP.
@@ -970,7 +1001,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                              RVFI->getVarArgsSaveSize() + RVFI->getRVVPadding();
     Offset += StackOffset::get(ScalarLocalVarSize, RVFI->getRVVStackSize());
   }
-  return Offset;
+  return scaleFixedStackOffset(STI, Offset);
 }
 
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
@@ -1275,6 +1306,7 @@ MachineBasicBlock::iterator RISCVFrameLowering::eliminateCallFramePseudoInstr(
     // allocation (e.g. alloca), which means it's not possible to allocate
     // space for outgoing arguments from within the function prologue.
     int64_t Amount = MI->getOperand(0).getImm();
+    Amount = scaleFixedStackOffset(STI, Amount);
 
     if (Amount != 0) {
       // Ensure the stack remains aligned after adjustment.
@@ -1305,6 +1337,9 @@ MachineBasicBlock::iterator RISCVFrameLowering::eliminateCallFramePseudoInstr(
 //   add     sp,sp,-64
 uint64_t
 RISCVFrameLowering::getFirstSPAdjustAmount(const MachineFunction &MF) const {
+  if (STI.getStackWordStride() != 1)
+    return 0;
+
   const auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();

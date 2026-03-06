@@ -260,6 +260,9 @@ public:
 
   bool useAA() const override;
 
+  unsigned getMaxAllocatableGPRs() const;
+  unsigned getStackWordStride() const;
+
   unsigned getCacheLineSize() const override {
     return TuneInfo->CacheLineSize;
   };

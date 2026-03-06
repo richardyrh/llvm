@@ -65,6 +65,14 @@ static cl::opt<unsigned> RISCVMinimumJumpTableEntries(
     "riscv-min-jump-table-entries", cl::Hidden,
     cl::desc("Set minimum number of entries to use a jump table on RISCV"));
 
+static cl::opt<unsigned> RISCVMaxAllocatableGPRs(
+    "riscv-max-allocatable-gprs", cl::Hidden, cl::init(128),
+    cl::desc("Maximum number of allocatable integer registers (32, 64, 128)."));
+
+static cl::opt<unsigned> RISCVStackWordStride(
+    "riscv-stack-word-stride", cl::Hidden, cl::init(1),
+    cl::desc("Stride multiplier for fixed stack-byte offsets."));
+
 void RISCVSubtarget::anchor() {}
 
 RISCVSubtarget &
@@ -203,4 +211,17 @@ unsigned RISCVSubtarget::getMinimumJumpTableEntries() const {
   return RISCVMinimumJumpTableEntries.getNumOccurrences() > 0
              ? RISCVMinimumJumpTableEntries
              : TuneInfo->MinimumJumpTableEntries;
+}
+
+unsigned RISCVSubtarget::getMaxAllocatableGPRs() const {
+  if (RISCVMaxAllocatableGPRs == 32 || RISCVMaxAllocatableGPRs == 64 ||
+      RISCVMaxAllocatableGPRs == 128)
+    return RISCVMaxAllocatableGPRs;
+  report_fatal_error("riscv-max-allocatable-gprs must be one of 32, 64, 128");
+}
+
+unsigned RISCVSubtarget::getStackWordStride() const {
+  if (RISCVStackWordStride == 0)
+    report_fatal_error("riscv-stack-word-stride must be >= 1");
+  return RISCVStackWordStride;
 }
