@@ -768,6 +768,12 @@ def FENCE_I : RVInstI2<0b001, 0, OPC_MISC_MEM, (outs), (ins), "fence.i", "">, Sc
   let imm32 = 0;
 }
 
+def FENCE_S : RVInstI2<0b010, 0, OPC_MISC_MEM, (outs), (ins), "fence.s", "">, Sched<[]> {
+  let rs1 = 0;
+  let rd = 0;
+  let imm32 = 0;
+}
+
 def ECALL : RVInstI2<0b000, 0, OPC_SYSTEM, (outs), (ins), "ecall", "">, Sched<[WriteJmp]> {
   let rs1 = 0;
   let rd = 0;
