@@ -38,7 +38,7 @@ struct RISCVSupportedExtension {
 } // end anonymous namespace
 
 // static constexpr StringLiteral AllStdExts = "mafdqlcbkjtpvnh";
-static constexpr StringLiteral AllStdExts = "mfdqlbkjtpnh";
+static constexpr StringLiteral AllStdExts = "mafdqlbkjtpnh";
 
 static const char *RISCVGImplications[] = {
   "i", "m", "a", "f", "d", "zicsr", "zifencei"
@@ -46,7 +46,7 @@ static const char *RISCVGImplications[] = {
 
 // NOTE: This table should be sorted alphabetically by extension name.
 static const RISCVSupportedExtension SupportedExtensions[] = {
-    // {"a", {2, 1}},
+    {"a", {2, 1}},
     // {"c", {2, 0}},
     {"d", {2, 2}},
     {"e", {2, 0}},
