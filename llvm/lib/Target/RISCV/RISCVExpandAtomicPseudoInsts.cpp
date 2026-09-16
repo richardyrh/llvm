@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
@@ -110,6 +111,25 @@ bool RISCVExpandAtomicPseudo::expandMI(MachineBasicBlock &MBB,
   // RISCVInstrInfo::getInstSizeInBytes expects that the total size of the
   // expanded instructions for each pseudo is correct in the Size field of the
   // tablegen definition for the pseudo.
+  switch (MBBI->getOpcode()) {
+  case RISCV::PseudoAtomicLoadNand32:
+  case RISCV::PseudoAtomicLoadNand64:
+  case RISCV::PseudoMaskedAtomicSwap32:
+  case RISCV::PseudoMaskedAtomicLoadAdd32:
+  case RISCV::PseudoMaskedAtomicLoadSub32:
+  case RISCV::PseudoMaskedAtomicLoadNand32:
+  case RISCV::PseudoMaskedAtomicLoadMax32:
+  case RISCV::PseudoMaskedAtomicLoadMin32:
+  case RISCV::PseudoMaskedAtomicLoadUMax32:
+  case RISCV::PseudoMaskedAtomicLoadUMin32:
+  case RISCV::PseudoCmpXchg32:
+  case RISCV::PseudoCmpXchg64:
+  case RISCV::PseudoMaskedCmpXchg32:
+    if (STI->hasVendorXVortex())
+      report_fatal_error("LR/SC unsupported");
+    break;
+  }
+
   switch (MBBI->getOpcode()) {
   case RISCV::PseudoAtomicLoadNand32:
     return expandAtomicBinOp(MBB, MBBI, AtomicRMWInst::Nand, false, 32,
