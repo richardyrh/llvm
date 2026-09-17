@@ -27,8 +27,32 @@
 
 using namespace llvm;
 
+// Map a logical stack byte offset to its physical one under the lane-interleaved stack.
+//
+// The stride exists so that the N lanes of a warp, whose stack pointers are 4 bytes apart, each own
+// one 4-byte slot of every stack word.  Scaling the WHOLE offset would place two bytes of the same
+// word `stride` bytes apart, which is exactly where another lane's slot is: with stride 16, logical
+// bytes 0x20 and 0x21 would land at 0x200 and 0x210, and 0x210 belongs to lane 4.  A kernel doing a
+// byte or halfword store to its own frame would silently corrupt a sibling lane.
+//
+// So scale the word index and leave the byte within the word alone:
+//
+//   physical(b) = (b & ~3) * stride + (b & 3)
+//
+// Word-aligned offsets are unaffected, which is why this changes no existing word-sized codegen.
+// Bytes 0..3 of a logical word stay contiguous, so any access up to 4 bytes wide stays inside the
+// issuing lane's slot.  `& ~3` is a floor to the word boundary for negative offsets too, so
+// frame-pointer-relative offsets behave the same way.
+//
+// This composes with the separate scaling of an instruction's immediate in
+// RISCVRegisterInfo::eliminateFrameIndex only because every stack object is forced to 4-byte
+// alignment when the stride is on (see processFunctionBeforeFrameFinalized): with a word-aligned
+// base, physical(base) + physical(imm) == physical(base + imm).
 static int64_t scaleFixedStackOffset(const RISCVSubtarget &STI, int64_t Offset) {
-  return Offset * static_cast<int64_t>(STI.getStackWordStride());
+  int64_t Stride = static_cast<int64_t>(STI.getStackWordStride());
+  if (Stride == 1)
+    return Offset;
+  return (Offset & ~INT64_C(3)) * Stride + (Offset & INT64_C(3));
 }
 
 static uint64_t scaleFixedStackSize(const RISCVSubtarget &STI, uint64_t Size) {
@@ -1237,6 +1261,21 @@ void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
     // scalable-vector object alignments are not considered by the
     // target-independent code.
     MFI.ensureMaxAlignment(RVVStackAlign);
+  }
+
+  // Under the lane-interleaved stack every object must start on a logical word boundary.  Two
+  // sub-word objects sharing a word would otherwise be mapped into the same 4-byte slot as each
+  // other's lanes, and a word-aligned base is also what makes scaleFixedStackOffset distribute
+  // over the base/immediate split in eliminateFrameIndex.  Costs at most 3 logical bytes per
+  // sub-word object, and there is no size pressure here: the frame is already scaled by the stride.
+  if (MF.getSubtarget<RISCVSubtarget>().getStackWordStride() != 1) {
+    for (int FI = MFI.getObjectIndexBegin(), E = MFI.getObjectIndexEnd(); FI != E; ++FI) {
+      if (MFI.isDeadObjectIndex(FI) || MFI.getStackID(FI) != TargetStackID::Default)
+        continue;
+      if (MFI.getObjectAlign(FI) < Align(4))
+        MFI.setObjectAlignment(FI, Align(4));
+    }
+    MFI.ensureMaxAlignment(Align(4));
   }
 
   unsigned ScavSlotsNum = 0;

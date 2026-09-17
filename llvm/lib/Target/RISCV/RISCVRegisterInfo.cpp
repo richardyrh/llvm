@@ -36,8 +36,14 @@ static cl::opt<bool>
                          cl::desc("Disable two address hints for register "
                                   "allocation"));
 
+// Scale the word index and leave the byte within the word alone, so a sub-word access stays inside
+// the issuing lane's 4-byte slot instead of landing in a sibling lane's.  Must stay identical to
+// the copy in RISCVFrameLowering.cpp, which carries the full explanation.
 static int64_t scaleFixedStackOffset(const RISCVSubtarget &ST, int64_t Offset) {
-  return Offset * static_cast<int64_t>(ST.getStackWordStride());
+  int64_t Stride = static_cast<int64_t>(ST.getStackWordStride());
+  if (Stride == 1)
+    return Offset;
+  return (Offset & ~INT64_C(3)) * Stride + (Offset & INT64_C(3));
 }
 
 static_assert(RISCV::X1 == RISCV::X0 + 1, "Register list not consecutive");
